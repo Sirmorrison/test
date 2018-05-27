@@ -1,6 +1,7 @@
 /**
  * Module dependencies.
  */
+"use strict"
 
 let app = require('./app');
 let debug = require('debug')('e-commerce:server');
