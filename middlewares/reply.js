@@ -1,3 +1,5 @@
+"use strict";
+
 exports.setupResponder = function(req, res, next)
 {
 	res.reply = function(response, code){

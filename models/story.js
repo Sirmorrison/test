@@ -1,3 +1,5 @@
+"use strict";
+
 let mongoose = require("mongoose");
 let Schema = mongoose.Schema;
 
@@ -37,4 +39,4 @@ let postFields = {
 };
 
 let Story = new Schema(postFields);
-module.exports = mongoose.model('Question', Story);
+module.exports = mongoose.model('Story', Story);

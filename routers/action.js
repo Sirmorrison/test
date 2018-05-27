@@ -1,6 +1,7 @@
+"use strict";
+
 let express = require('express');
 let router = express.Router();
-
 const protector = require('../middlewares/protector');
 
 //all action endpoints
