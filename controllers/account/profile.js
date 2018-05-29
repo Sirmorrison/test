@@ -1,4 +1,3 @@
-"use strict";
 const express = require('express');
 const router = express.Router();
 let fs = require('fs');
@@ -125,10 +124,10 @@ router.get('/:userId', function(req, res) {
 
 /*** END POINT FOR GETTING FOLLOWERS OF A CURRENTLY LOGGED IN USER */
 router.get('/user/follower', function(req, res){
-    console.log(req);
+    console.log(req)
 
     let id = req.user.id;
-    console.log(id);
+    console.log(id)
 
     profile(id, function (err, result) {
 

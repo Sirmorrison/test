@@ -1,5 +1,3 @@
-"use strict";
-
 let validator = require('validator');
 
 exports.isValidEmail = function(res, email, optional){

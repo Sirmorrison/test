@@ -1,7 +1,6 @@
-"use strict";
-
 let express = require('express');
 let router = express.Router();
+let moment = require('moment');
 
 const config = require('../../config');
 let FirebaseAuth = require('firebaseauth');
@@ -54,7 +53,6 @@ router.post('/', function(req, res){
         if (!result) {
             firebase.registerWithEmail(email, password, extras, function (err, firebaseResponse) {
                 if (err) {
-                    console.log(err);
                     //firebase errors come as object {code, message}, return only message
                     return res.badRequest(err.message);
                 }

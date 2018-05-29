@@ -1,5 +1,3 @@
-"use strict";
-
 Array.prototype.unique = function(mutate) {
     let unique = this.reduce(function(accum, current) {
         if (accum.indexOf(current) < 0) {

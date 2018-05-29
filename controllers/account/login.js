@@ -1,5 +1,3 @@
-"use strict";
-
 const express = require('express');
 let router = express.Router();
 
@@ -53,15 +51,12 @@ router.post('/', function(req, res){
 
 /*** END POINT FOR LOGIN WITH FACEBOOK */
 router.post('/facebook', function(req, res){
-
     let access_token = req.body.access_token;
     firebase.loginWithFacebook(access_token, function(err, firebaseResponse){
         if (err){
-            // console.log(err)
             //firebase errors come as object {code, message}, return only message
             return res.badRequest(err.message);
         }
-        console.log(firebaseResponse)
 
         processFirebaseSocialLogin(firebaseResponse, function(errorMessage, userInfo){
             if (err){
@@ -97,7 +92,7 @@ router.post('/google', function(req, res) {
 function processFirebaseSocialLogin(firebaseResponse, callback) {
     User.findOne({_id: firebaseResponse.user.id}, function (err, user) {
         if (err) {
-            // console.log(err);
+            console.log(err);
             return callback("Something unexpected happened");
         }
 
@@ -111,7 +106,7 @@ function processFirebaseSocialLogin(firebaseResponse, callback) {
 
             User.create(info, function (err, user) {
                 if (err) {
-                    // console.log(err);
+                    console.log(err);
                     return callback("Something unexpected happened");
                 }
 

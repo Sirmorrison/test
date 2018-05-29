@@ -1,5 +1,3 @@
-"use strict";
-
 let express = require('express');
 let router = express.Router();
 
@@ -11,7 +9,7 @@ const protector = require('../middlewares/protector');
 // router.use('/register',protector.protect, register);
 
 let category = require('../controllers/admin/category');
-router.use('/category',protector.protect, category);
+router.use('/category', category);
 
 //all profile endpoints
 // let biz_profile = require('../controllers/business/biz_profile');

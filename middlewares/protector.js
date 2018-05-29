@@ -1,5 +1,3 @@
-"use strict";
-
 const config = require('../config');
 let FirebaseAuth = require('firebaseauth');
 let firebase = new FirebaseAuth(config.FIREBASE_API_KEY);
