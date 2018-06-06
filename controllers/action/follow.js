@@ -84,7 +84,7 @@ router.post('/:userId', function (req,res) {
             }
         }
     }, function (err, f) {
-        console.log(f)
+        console.log(f);
         if (err) {
             return res.badRequest("Something unexpected happened");
         }

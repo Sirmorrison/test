@@ -1,8 +1,8 @@
 let express = require('express');
 let router = express.Router();
 
-let Question = require('../../models/story');
-let Story = require('../../models/question');
+let Story = require('../../models/story');
+let Question = require('../../models/question');
 
 /*** END POINT FOR LIKING A STORY  BY CURRENTLY LOGGED IN USER */
 router.post('/story/:postId', function (req, res) {
@@ -36,6 +36,7 @@ router.post('/story/:postId', function (req, res) {
         if (err) {
             return res.badRequest("Something unexpected happened");
         }
+        console.log(f)
         if(f.nModified === 0){
             return res.success('you have either liked or disliked this post')
         }
@@ -113,6 +114,136 @@ router.delete('/question/:postId', function (req, res) {
     };
 
     Question.update({_id: req.params.postId}, updateOperation, function (err) {
+        if (err) {
+            console.log(err);
+            return res.badRequest("Some error occurred");
+        }
+
+        res.success({liked: false});
+    });
+});
+
+/*** END POINT FOR LIKING A COMMENT BY CURRENTLY LOGGED IN USER */
+router.post('/story/:storyId/comment/:commentId', function (req, res) {
+
+    let userId = req.user.id;
+    let storyId = req.params.storyId;
+    let answerId = req.params.answerId;
+
+    Story.update({
+        "_id": storyId,
+        'comments._id': answerId,
+        "comments.dislikes": {
+            "$not": {
+                "$elemMatch": {
+                    "userId": userId
+                }
+            }
+        },
+        "comments.likes": {
+            "$not": {
+                "$elemMatch": {
+                    "userId": userId
+                }
+            }
+        }
+    }, {
+        $addToSet: {
+            'comments.$.likes': {
+                "userId": userId
+            }
+        }
+    },function (err, f) {
+        if (err) {
+            console.log(err);
+            return res.badRequest("Something unexpected happened");
+        }
+        if(f.nModified === 0){
+            return res.success('you have either liked or disliked this post')
+        }
+        res.success({liked: true});
+    });
+});
+
+/*** END POINT FOR LIKING AN ANSWER  BY CURRENTLY LOGGED IN USER */
+router.post('/question/:questionId/answer/:answerId', function (req, res) {
+
+    let userId = req.user.id;
+    let questionId = req.params.questionId;
+    let answerId = req.params.answerId;
+
+    Story.update({
+        "_id": questionId,
+        'answers._id': answerId,
+        "answers.dislikes": {
+            "$not": {
+                "$elemMatch": {
+                    "userId": userId
+                }
+            }
+        },
+        "answers.likes": {
+            "$not": {
+                "$elemMatch": {
+                    "userId": userId
+                }
+            }
+        }
+    }, {
+        $addToSet: {
+            'answers.$.likes': {
+                "userId": userId
+            }
+        }
+    },function (err, f) {
+        if (err) {
+            console.log(err);
+            return res.badRequest("Something unexpected happened");
+        }
+        if(f.nModified === 0){
+            return res.success('you have either liked or disliked this post')
+        }
+        res.success({liked: true});
+    });
+});
+
+/*** END POINT FOR DELETING COMMENT LIKE OF A POST BY CURRENTLY LOGGED IN USER */
+router.delete('/story/:storyId/comment/:commentId', function (req, res) {
+    let userId = req.user.id;
+    let storyId = req.params.storyId;
+    let commentId = req.params.commentId;
+    let updateOperation = {
+        $pull: {
+            'comments.$.likes': {
+                    userId: userId
+            }
+        }
+    };
+
+    Story.update({'_id': storyId, 'comments._id': commentId}, updateOperation, function (err, g) {
+        if (err) {
+            console.log(err);
+            return res.badRequest("Some error occurred");
+        }
+
+        res.success({liked: false});
+    });
+});
+
+/*** END POINT FOR DELETING ANSWER LIKE OF A POST BY CURRENTLY LOGGED IN USER */
+router.delete('/question/:questionId/answer/:answerId', function (req, res) {
+    let userId = req.user.id;
+    let questionId = req.params.questionId;
+    let answerId = req.params.answerId;
+    let updateOperation = {
+        $pull: {
+            'answers.$.likes': {
+                userId: userId
+            }
+        }
+    };
+
+    Story.update({'_id': questionId, 'answers._id': answerId}, updateOperation, function (err, g) {
         if (err) {
             console.log(err);
             return res.badRequest("Some error occurred");

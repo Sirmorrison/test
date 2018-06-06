@@ -7,6 +7,7 @@
   },
   "dependencies": {
     "body-parser": "^1.18.3",
+    "braintree": "^2.11.0",
     "cloudinary": "^1.11.0",
     "connect-multiparty": "^2.1.0",
     "cors": "^2.8.4",
@@ -15,6 +16,7 @@
     "moment": "^2.22.1",
     "mongoose": "^4.13.14",
     "morgan": "~1.9.0",
+    "paypal-rest-sdk": "^1.8.1",
     "socket.io": "^2.1.1",
     "validator": "^8.2.0"
   }

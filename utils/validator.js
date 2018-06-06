@@ -21,6 +21,17 @@ exports.isValidPhoneNumber = function(res, phoneNumber, optional){
     return true;
 };
 
+exports.isNumber = function(res, number, optional){
+    if (!optional && !number) {
+        return res.badRequest('Phone Number is required');
+    }
+    if (!validator.isNumeric(number)){
+        return res.badRequest('field requires only numeric values and it is not valid')
+    }
+
+    return true;
+};
+
 exports.isSentence = function(res, sentence, optional){
     if (!optional && !sentence) {
         return res.badRequest('A required field is missing');
@@ -31,20 +42,6 @@ exports.isSentence = function(res, sentence, optional){
 
     return true;
 };
-
-// exports.isBizCategory = function(res, category, optional){
-//     let allowedCategories = ["event centre", "catering","pastries/cake design", "transportation", "entertainment",
-//                             'decoration','dj','mc','comedy','make-overs', 'fashion', 'printing press','business centre',
-//                             'grocery', 'security', 'jewelry', 'gift shops', 'event planning', 'ushering']
-//     if (!optional && !category) {
-//         return res.badRequest('category is required');
-//     }
-//     if (typeof(category) !== 'string' || allowedCategories.indexOf(category.toLowerCase()) < 0) {
-//         return res.badRequest("category of business is required. Please select from the list given");
-//     }
-//
-//     return true;
-// };
 
 exports.isWord = function(res, word, optional){
     if (!optional && !word) {

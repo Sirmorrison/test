@@ -2,15 +2,15 @@ let mongoose = require("mongoose");
 let Schema = mongoose.Schema;
 
 let commentField = require('./comment');
-let commentSchema = new Schema(commentField);
+let commentSchema = new Schema(commentField ,{timestamps: true});
 
 let userIdField = require('./userId');
-let userIdSchema = new Schema(userIdField);
+let userIdSchema = new Schema(userIdField ,{timestamps: true});
 
 let catIdField = require('./cate_tags');
-let categorySchema = new Schema(catIdField);
+let categorySchema = new Schema(catIdField ,{timestamps: true});
 
-let postFields = {
+let storyFields = {
     story: {
         type:String,
         required: true
@@ -24,11 +24,6 @@ let postFields = {
     dislikes: [userIdSchema],
     views: [userIdSchema],
     comments: [commentSchema],
-    postedOn: {
-        type: Date,
-        default: Date.now(),
-        required:true
-    },
     postedBy: {
         type: mongoose.Schema.Types.String,
         ref: 'User',
@@ -36,5 +31,5 @@ let postFields = {
     },
 };
 
-let Story = new Schema(postFields);
+let Story = new Schema(storyFields, {timestamps: true});
 module.exports = mongoose.model('Story', Story);

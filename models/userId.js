@@ -5,9 +5,5 @@ module.exports = {
         type: mongoose.Schema.Types.String,
         ref: 'User',
         required: true
-    },
-    postedOn: {
-        type: Date,
-        default: Date.now()
     }
 };

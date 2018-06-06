@@ -5,11 +5,15 @@ let userIdField = require('./userId');
 let userIdSchema = new Schema(userIdField, {timestamps: true});
 
 module.exports = {
-    comment: {
+    answer: {
         type: String,
         required: true
     },
-    commentedBy: {
+    answeredOn: {
+        type: Date,
+        default: Date.now()
+    },
+    answeredBy: {
         type: mongoose.Schema.Types.String,
         ref: 'User',
         required: true

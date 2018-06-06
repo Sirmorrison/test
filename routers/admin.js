@@ -1,15 +1,15 @@
 let express = require('express');
 let router = express.Router();
 
-
 const protector = require('../middlewares/protector');
 
-//all register endpoints
-// let register = require('../controllers/business/register');
-// router.use('/register',protector.protect, register);
+//all packages endpoints
+let packages = require('../controllers/admin/packages');
+router.use('/packages',protector.protect, packages);
 
+//all category endpoints
 let category = require('../controllers/admin/category');
-router.use('/category', category);
+router.use('/category',protector.protect, category);
 
 //all profile endpoints
 // let biz_profile = require('../controllers/business/biz_profile');

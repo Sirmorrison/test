@@ -2,13 +2,13 @@ let express = require('express');
 let router = express.Router();
 
 let User = require('../../models/user');
-let BizCat = require('../../models/Categories');
+let Category = require('../../models/categories');
 const validator = require('../../utils/validator');
 
 /*** END POINT FOR GETTING BUSINESS CATEGORIES BY USER */
 router.get('/', function (req, res) {
 
-    BizCat.find({}, {title:1},function (err, result) {
+    Category.find({}, {title:1},function (err, result) {
         if (err) {
             console.log(err);
             return res.badRequest("Something unexpected happened");
@@ -31,14 +31,13 @@ router.post('/', function (req, res) {
         postedBy: userId
     };
 
-    userVerify(userId, function (err, user) {
+    userVerify(userId, function (err) {
         if (err) {
             console.log(err);
             return res.badRequest(err);
         }
 
-        console.log(user);
-        BizCat.findOne({title : title},function (err, result) {
+        Category.findOne({title : title},function (err, result) {
             if (err) {
                 console.log(err);
                 return res.badRequest("Something unexpected happened");
@@ -46,7 +45,7 @@ router.post('/', function (req, res) {
             if (result) {
                 return res.badRequest("A category already exist with this category Name: " + title);
             } else {
-                BizCat.create(data, function (err, cate) {
+                Category.create(data, function (err, cate) {
                     if (err) {
                         console.log(err);
                         return res.badRequest("Something unexpected happened");
@@ -83,7 +82,7 @@ router.post('/biz/:catId', function (req, res) {
             console.log(err);
             return res.badRequest(err);
         }
-        BizCat.findOneAndUpdate(
+        Category.findOneAndUpdate(
             {postedBy: req.user.id, _id: catId},
             {$set: data},
             {new: true}, function (err, cat) {
@@ -116,16 +115,16 @@ router.post('/biz/:catId', function (req, res) {
             console.log(err);
             return res.badRequest(err);
         }
-        BizCat.remove({_id: catId}, function (err, cat) {
+        Category.remove({_id: catId}, function (err, cat) {
             if (err) {
                 console.log(err);
                 return res.serverError("Something unexpected happened");
             }
             if (!cat) {
-                console.log(err);
                 return res.badRequest("no category found");
             }
 
+            console.log(cat);
             res.success(cat);
         })
     })

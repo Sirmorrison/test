@@ -2,10 +2,10 @@ let mongoose = require("mongoose");
 let Schema = mongoose.Schema;
 
 let commentField = require('./comment');
-let commentSchema = new Schema(commentField);
+let commentSchema = new Schema(commentField,{timestamps: true});
 
 let userIdField = require('./userId');
-let userIdSchema = new Schema(userIdField);
+let userIdSchema = new Schema(userIdField,{timestamps: true});
 
 let postFields = {
     question: {
@@ -18,11 +18,7 @@ let postFields = {
     },
     likes: [userIdSchema],
     dislikes: [userIdSchema],
-    postedOn: {
-        type: Date,
-        default: Date.now(),
-        required:true
-    },
+
     postedBy: {
         type: mongoose.Schema.Types.String,
         ref: 'User',
@@ -30,5 +26,5 @@ let postFields = {
     }
 };
 
-let Answer = new Schema(postFields);
+let Answer = new Schema(postFields, {timestamps: true});
 module.exports = mongoose.model('Answer', Answer);

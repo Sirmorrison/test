@@ -10,13 +10,8 @@ let fields = {
     title: {
         type: String,
         required: true
-    },
-    postedOn: {
-        type:Date,
-        default: Date.now(),
-        required: true
     }
 };
 
-let Categories = new Schema(fields);
-module.exports = mongoose.model('bizCategories', Categories);
+let Categories = new Schema(fields, {timestamps: true});
+module.exports = mongoose.model('Categories', Categories);

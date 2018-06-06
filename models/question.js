@@ -1,16 +1,16 @@
 let mongoose = require("mongoose");
 let Schema = mongoose.Schema;
 
-let commentField = require('./comment');
-let commentSchema = new Schema(commentField);
+let answerField = require('./answers');
+let answerSchema = new Schema(answerField,{timestamps: true});
 
 let userIdField = require('./userId');
-let userIdSchema = new Schema(userIdField);
+let userIdSchema = new Schema(userIdField,{timestamps: true});
 
 let catIdField = require('./cate_tags');
-let categorySchema = new Schema(catIdField);
+let categorySchema = new Schema(catIdField,{timestamps: true});
 
-let postFields = {
+let questionFields = {
     question: {
         type:String,
         required: true
@@ -23,12 +23,7 @@ let postFields = {
     likes: [userIdSchema],
     dislikes: [userIdSchema],
     views: [userIdSchema],
-    answers: [commentSchema],
-    postedOn: {
-        type: Date,
-        default: Date.now(),
-        required:true
-    },
+    answers: [answerSchema],
     postedBy: {
         type: mongoose.Schema.Types.String,
         ref: 'User',
@@ -36,5 +31,5 @@ let postFields = {
     },
 };
 
-let Question = new Schema(postFields);
+let Question = new Schema(questionFields, {timestamps: true});
 module.exports = mongoose.model('Question', Question);

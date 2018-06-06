@@ -12,6 +12,9 @@ router.use('/story',protector.protect, story);
 let question = require('../controllers/action/question');
 router.use('/question',protector.protect, question);
 
+let general = require('../controllers/action/general');
+router.use('/general',protector.protect, general);
+
 let follow = require('../controllers/action/follow');
 router.use('/follow', protector.protect, follow);
 
