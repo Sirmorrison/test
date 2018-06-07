@@ -14,4 +14,4 @@ let fields = {
 };
 
 let Categories = new Schema(fields, {timestamps: true});
-module.exports = mongoose.model('categories', categories);
+module.exports = mongoose.model('Categories', Categories);
