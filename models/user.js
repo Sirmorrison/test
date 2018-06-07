@@ -55,5 +55,4 @@ let fields = {
 };
 
 let User = new Schema(fields, { timestamps: true });
-
 module.exports = mongoose.model('User', User);

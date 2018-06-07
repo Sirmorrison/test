@@ -11,7 +11,7 @@ let arrayUtils = require('../../utils/array');
 let validator = require('../../utils/validator');
 
 /*** END POINT FOR GETTING POST OF BY CATEGORIES BY CURRENTLY LOGGED IN USER */
-router.get('/:catId', function (req, res) {
+router.get('/', function (req, res) {
 
     let id = req.params.catId;
 
@@ -22,6 +22,43 @@ router.get('/:catId', function (req, res) {
         {$project: {comments:{$size :"$comments"},dislikes:{$size :"$dislikes"},likes:{$size :"$likes"}, category:1, story:1, postedOn:1,postedBy:1, title:1}},
         {$sort:{date: -1}}
 
+    ], function (err, data) {
+        if (err) {
+            console.log(err);
+            return res.badRequest("Something unexpected happened");
+        }
+
+        Story.populate(data,{
+                'path': 'likes.userId dislikes.userId comments.commentedBy',
+                'select': 'name photoUrl email bio'
+            },
+
+            function (err, post) {
+
+                if (err) {
+                    console.log(err);
+                    return res.badRequest("Something unexpected happened");
+                }
+                if (!post) {
+                    return res.success([]);
+                }
+
+                res.success(post);
+            }
+        );
+    });
+});
+
+/*** END POINT FOR GETTING POST OF BY CATEGORIES BY CURRENTLY LOGGED IN USER */
+router.get('/:catId', function (req, res) {
+
+    let id = req.params.catId;
+
+    Story.aggregate([
+        {$match: {"category.categoryId": id}},
+        {$unwind: {path: "$category", preserveNullAndEmptyArrays: true}},
+        {$project: {comments:{$size :"$comments"}, dislikes:{$size :"$dislikes"},likes:{$size :"$likes"}, category:1, story:1, createdAt:1, postedBy:1, title:1}},
+        {$sort:{date: -1}}
     ], function (err, data) {
         if (err) {
             console.log(err);

@@ -14,7 +14,7 @@ router.use('/signup', signup);
 
 //all profile endpoints
 let profile = require('../controllers/account/profile');
-router.use('/profile',protector.protect, profile);
+router.use('/profile', profile);
 
 //all recovery endpoints
 let recovery = require('../controllers/account/recovery');

@@ -1,37 +1,37 @@
 let express = require('express');
 let router = express.Router();
 
-let Story = require('../../models/story');
+let Question = require('../../models/question');
 let validator = require('../../utils/validator');
 
 /*** END POINT FOR COMMENTING ON A POST OF A USER BY ANOTHER CURRENTLY LOGGED IN USER */
-router.post('/:postId', function (req, res) {
-    let comment = req.body.comment,
-        postId = req.params.postId;
+router.post('/:questionId', function (req, res) {
+    let answer = req.body.answer,
+        questionId = req.params.questionId;
 
-    let validated = validator.isSentence(res, comment);
+    let validated = validator.isSentence(res, answer);
     if (!validated) return;
 
     let values ={
-        comment: comment,
+        answer: answer,
         commentedBy: req.user.id
     };
 
-    Story.findOne({_id: postId},function (err, post) {
+    Question.findOne({_id: questionId},function (err, question) {
         if (err) {
             console.log(err);
             return res.serverError("Something unexpected happened");
         }
-        post.comments.push(values);
-        post.save(function (err, result) {
+        question.answers.push(values);
+        question.save(function (err, result) {
             if (err) {
                 console.log(err);
                 return res.serverError("Something unexpected happened");
             }
 
             let data = {
-                commentId: result.comments[result.comments.length - 1]._id,
-                comment: result.comments[result.comments.length - 1].comment
+                answerId: result.answers[result.answers.length - 1]._id,
+                answers: result.answers[result.answers.length - 1].answers
             };
             res.success(data);
         });
@@ -39,22 +39,22 @@ router.post('/:postId', function (req, res) {
 });
 
 /*** END POINT FOR EDITING COMMENT ON A POST*/
-router.put('/:postId/:commentId', function (req,res) {
+router.put('/:questionId/:answerId', function (req,res) {
 
-    let postId = req.params.postId,
-        commentId = req.params.commentId,
+    let questionId = req.params.questionId,
+        answerId = req.params.answerId,
         id = req.user.id,
-        comment = req.body.comment;
+        answer = req.body.answer;
 
-    let validated = validator.isSentence(res, comment);
+    let validated = validator.isSentence(res, answer);
     if (!validated) return;
 
-    Story.updateOne({
-            "_id": postId,
-            "comments._id": commentId,
-            "comments.commentedBy": id,
+    Question.updateOne({
+            "_id": questionId,
+            "answers._id": answerId,
+            "answers.answeredBy": id,
         },
-        {$set: {"comments.$.comment": comment}},
+        {$set: {"answers.$.answer": answer}},
         function (err, result) {
             if (err) {
                 console.log(err);
@@ -69,23 +69,23 @@ router.put('/:postId/:commentId', function (req,res) {
 });
 
 /*** END POINT FOR DELETING COMMENT ON A POST*/
-router.delete('/:postId/:commentId', function (req, res) {
+router.delete('/:questionId/:answerId', function (req, res) {
 
-    let postId = req.params.postId,
-        commentId = req.params.commentId,
+    let questionId = req.params.questionId,
+        answerId = req.params.answerId,
         id = req.user.id;
 
-    Story.findOne({_id: postId}, function (err, post, next) {
+    Question.findOne({_id: questionId}, function (err, question) {
         if (err) {
             return res.serverError("Something unexpected happened");
         }
-        if(post.comments.id(commentId).commentedBy !== id ){
+        if(question.answers.id(answerId).answeredBy !== id ){
             let err = new Error('you re not authorized');
             console.log(err)
             return res.notAllowed(err);
         }else {
-            post.comments.id(commentId).remove();
-            post.save(function (err, resp) {
+            question.answers.id(answerId).remove();
+            question.save(function (err, resp) {
                 if (err) {
                     console.log(err);
                     return res.serverError("Something unexpected happened");

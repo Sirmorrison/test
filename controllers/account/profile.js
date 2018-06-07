@@ -93,6 +93,7 @@ router.get('/:userId', function(req, res) {
     User.aggregate([
         {$match: {'_id': id}},
         {$unwind: {path: "$rating", preserveNullAndEmptyArrays: true}},
+        {$unwind: {path: "$categoryTags", preserveNullAndEmptyArrays: true}},
         {$project: {totalFollowing:{$size :"$following"},totalFollowers:{$size :"$followers"},email:1,
             phone_number:1, rating:1, bio:1,photoUrl:1, public_id:1, profession:1, name:1, Rating:{$avg :"$rating.rating"},
             followers:1, following:1, createdAt: 1, address:1

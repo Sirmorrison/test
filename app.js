@@ -46,6 +46,9 @@ app.use('/admin', admin);
 let bills = require('./routers/bills');
 app.use('/bills', bills);
 
+let post = require('./routers/post');
+app.use('/post', post);
+
 app.use(function(err, req, res, next){
 	res.status(400).json(err);
 });
