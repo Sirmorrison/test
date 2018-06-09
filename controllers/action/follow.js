@@ -4,31 +4,6 @@ let router = express.Router();
 let User = require('../../models/user');
 let validator = require('../../utils/validator');
 
-router.get('/', function (req,res) {
-    User.findById( req.user.id)
-        .populate({
-            path: 'followers.userId',
-            select:'name photoUrl email coverImageUrl'
-        })
-        .populate({
-            path: 'following.userId',
-            select:'name photoUrl email coverImageUrl'
-        })
-        .sort({date: -1})
-        .exec(function(err, user) {
-            if (err){
-                console.log(err);
-                return res.serverError("Something unexpected happened");
-            }
-
-            let result = {
-                followers: user.followers,
-                following: user.following
-            };
-
-            res.success(result);
-        });
-});
 
 /*** ENDPOINTS FOR FOLLOWING A REGISTERED USER BY ANOTHER USER**/
 router.post('/:userId', function (req,res) {
@@ -95,7 +70,7 @@ router.post('/:userId', function (req,res) {
     });
 });
 
-/*** ENDPOINTS FOR UNFOLLOWING A REGISTERED USER BY ANOTHER USER**/
+/*** ENDPOINTS FOR UN-FOLLOWING A REGISTERED USER BY ANOTHER USER**/
 router.delete('/:userId', function (req,res) {
 
     let followingId = req.params.userId,

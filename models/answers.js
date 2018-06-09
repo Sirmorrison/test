@@ -9,10 +9,6 @@ module.exports = {
         type: String,
         required: true
     },
-    answeredOn: {
-        type: Date,
-        default: Date.now()
-    },
     answeredBy: {
         type: mongoose.Schema.Types.String,
         ref: 'User',

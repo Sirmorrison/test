@@ -86,63 +86,6 @@ router.get('/', function(req, res) {
     });
 });
 
-/*** END POINT FOR GETTING PERSONAL PROFILE BY  OTHER CURRENTLY LOGGED IN USER */
-router.get('/:userId', function(req, res) {
-    let id = req.params.userId;
-
-    User.aggregate([
-        {$match: {'_id': id}},
-        {$unwind: {path: "$rating", preserveNullAndEmptyArrays: true}},
-        {$unwind: {path: "$categoryTags", preserveNullAndEmptyArrays: true}},
-        {$project: {totalFollowing:{$size :"$following"},totalFollowers:{$size :"$followers"},email:1,
-            phone_number:1, rating:1, bio:1,photoUrl:1, public_id:1, profession:1, name:1, Rating:{$avg :"$rating.rating"},
-            followers:1, following:1, createdAt: 1, address:1
-        }},
-        // {
-        //     $lookup: {
-        //         from: "posts",
-        //         localField: "id",
-        //         foreignField:"postedBy.userId",
-        //         as: "Question"
-        //     }
-        // },
-        // {
-        //     $lookup: {
-        //         from: "comments",
-        //         localField: "id",
-        //         foreignField: "commentedBy.userId",
-        //         as: "Comment"
-        //     }
-        // },
-        //
-        // {$unwind: {path: "$post", preserveNullAndEmptyArrays: true}},
-        // {$unwind: {path: "$comment", preserveNullAndEmptyArrays: true}}
-    ], function (err, data) {
-        if (err) {
-            console.log(err);
-            return res.badRequest("Something unexpected happened");
-        }
-
-        User.populate(data,{
-                'path': 'followers.userId following.userId rating.ratedBy',
-                'select': 'name photoUrl email bio'
-            },
-
-            function (err, user) {
-
-                if (err) {
-                    console.log(err);
-                    return res.badRequest("Something unexpected happened");
-                }
-                if (!user) {
-                    return res.badRequest("YOU NEED TO BE A REGISTERED USER TO VIEW GET ACCESS");
-                }
-
-                res.success(user);
-            });
-    });
-});
-
 /*** END POINT FOR GETTING ANSWERS OF A CURRENTLY LOGGED IN USER */
 router.get('/answer', function (req, res) {
 
@@ -179,41 +122,6 @@ router.get('/answer', function (req, res) {
     });
 });
 
-/*** END POINT FOR GETTING PROFILE ANSWERS OF A USER BY ANOTHER CURRENTLY LOGGED IN USER */
-router.get('/answer/:userId', function (req, res) {
-
-    let id = req.params.userId;
-    console.log(id);
-
-    Question.aggregate([
-        {$match: {'answers.answeredBy': id}},
-        {$unwind: {path: "$category", preserveNullAndEmptyArrays: true}},
-        {$project: {comments:{$size :"$comments"},dislikes:{$size :"$dislikes"},likes:{$size :"$likes"}, category:1, story:1, postedOn:1,postedBy:1}},
-        {$sort:{date: -1}}
-
-    ], function (err, data) {
-        console.log(data);
-        if (err) {
-            console.log(err);
-            return res.badRequest("Something unexpected happened");
-        }
-
-        Question.populate(data,{
-                'path': 'postedBy likes.userId dislikes.userId comments.commentedBy',
-                'select': 'name photoUrl email bio title'
-            },
-            function (err, post) {
-                if (err) {
-                    console.log(err);
-                    return res.badRequest("Something unexpected happened");
-                }
-
-                res.success(post);
-            }
-        );
-    });
-});
-
 /*** END POINT FOR GETTING QUESTIONS OF A CURRENTLY LOGGED IN USER */
 router.get('/question', function (req, res) {
 
@@ -232,45 +140,6 @@ router.get('/question', function (req, res) {
         //         as: "Posts",
         //     }
         // }
-
-    ], function (err, data) {
-        console.log(data);
-        if (err) {
-            console.log(err);
-            return res.badRequest("Something unexpected happened");
-        }
-
-        Question.populate(data,{
-                'path': 'postedBy likes.userId dislikes.userId comments.commentedBy',
-                'select': 'name photoUrl email bio title'
-            },
-
-            function (err, post) {
-
-                if (err) {
-                    console.log(err);
-                    return res.badRequest("Something unexpected happened");
-                }
-                if (!post) {
-                    return res.success([]);
-                }
-
-                res.success(post);
-            }
-        );
-    });
-});
-
-/*** END POINT FOR GETTING PROFILE QUESTIONS OF A USER BY ANOTHER CURRENTLY LOGGED IN USER */
-router.get('/question/:userId', function (req, res) {
-
-    let id = req.user.id;
-
-    Question.aggregate([
-        {$match: {'postedBy': id}},
-        {$unwind: {path: "$category", preserveNullAndEmptyArrays: true}},
-        {$project: {comments:{$size :"$comments"},dislikes:{$size :"$dislikes"},likes:{$size :"$likes"}, category:1, story:1, postedOn:1,postedBy:1}},
-        {$sort:{date: -1}}
 
     ], function (err, data) {
         console.log(data);
@@ -339,45 +208,6 @@ router.get('/story', function (req, res) {
     });
 });
 
-/*** END POINT FOR GETTING PROFILE STORY OF A USER BY ANOTHER CURRENTLY LOGGED IN USER */
-router.get('/story/:userId', function (req, res) {
-
-    let id = req.user.id;
-
-    Story.aggregate([
-        {$match: {'postedBy': id}},
-        {$unwind: {path: "$category", preserveNullAndEmptyArrays: true}},
-        {$project: {comments:{$size :"$comments"},dislikes:{$size :"$dislikes"},likes:{$size :"$likes"}, category:1, story:1, postedOn:1,postedBy:1}},
-        {$sort:{date: -1}}
-
-    ], function (err, data) {
-        console.log(data);
-        if (err) {
-            console.log(err);
-            return res.badRequest("Something unexpected happened");
-        }
-
-        Story.populate(data,{
-                'path': 'postedBy likes.userId dislikes.userId comments.commentedBy',
-                'select': 'name photoUrl email bio title'
-            },
-
-            function (err, post) {
-
-                if (err) {
-                    console.log(err);
-                    return res.badRequest("Something unexpected happened");
-                }
-                if (!post) {
-                    return res.success([]);
-                }
-
-                res.success(post);
-            }
-        );
-    });
-});
-
 /*** END POINT FOR GETTING FOLLOWERS OF A CURRENTLY LOGGED IN USER */
 router.get('/user/follower', function(req, res){
 
@@ -388,33 +218,6 @@ router.get('/user/follower', function(req, res){
             return res.badRequest(err.message);
         }
         res.success({followers: result.followers});
-    });
-});
-
-/*** END POINT FOR GETTING FOLLOWERS OF A USER BY ANOTHER CURRENTLY LOGGED IN USER */
-router.get('/follower/:userId', function(req, res){
-    let id = req.params.userId;
-
-    profile(id, function (err, result) {
-
-        if (err){
-            return res.badRequest(err.message);
-        }
-        res.success({followers: result.followers});
-    });
-});
-
-/*** END POINT FOR GETTING FOLLOWING OF A USER BY ANOTHER CURRENTLY LOGGED IN USER */
-router.get('/following/:userId', function(req, res){
-
-    let id = req.params.userId;
-    profile(id, function (err, result) {
-
-        if (err){
-            return res.badRequest(err.message);
-        }
-
-        res.success({following: result.following});
     });
 });
 

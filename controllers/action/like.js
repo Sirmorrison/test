@@ -4,6 +4,59 @@ let router = express.Router();
 let Story = require('../../models/story');
 let Question = require('../../models/question');
 
+/*** END POINT FOR GETTING THE DISLIKES ON A STORIES ANSWER OF A USER BY LOGGED IN USERS*/
+router.get('/:storyId/:commentId', function (req, res) {
+
+    let storyId = req.params.storyId,
+        commentId = req.params.commentId;
+
+    Story.findOne({_id: storyId})
+        .populate({
+            path: 'comments.likes.userId',
+            select: 'name photoUrl public_id'
+        })
+        .sort({date: -1})
+        .exec(function (err, post) {
+        console.log(post);
+                if (err) {
+                    return res.serverError("Something unexpected happened");
+                }
+                if (!post){
+                    return res.success('no post found with the id provided')
+                }
+
+                res.success(post.comments.id(commentId).likes);
+            }
+        );
+});
+
+/*** END POINT FOR GETTING THE DISLIKES ON A QUESTIONS ANSWER OF A USER BY LOGGED IN USERS*/
+router.get('/:questionId/:answerId', function (req, res) {
+
+    let questionId = req.params.questionId,
+        answerId = req.params.answerId;
+
+    Question.findOne({_id: questionId})
+        .populate({
+            path: 'answers.likes.userId',
+            select: 'name photoUrl public_id'
+        })
+        .sort({date: -1})
+        .exec(function (err, post) {
+            console.log(post);
+            if (err) {
+                return res.serverError("Something unexpected happened");
+            }
+            if (!post){
+                return res.success('no post found with the id provided')
+            }
+
+            res.success(post.answers.id(answerId).likes);
+        }
+    );
+});
+
+//STORY
 /*** END POINT FOR LIKING A STORY  BY CURRENTLY LOGGED IN USER */
 router.post('/story/:postId', function (req, res) {
 
@@ -64,6 +117,7 @@ router.delete('/story/:postId', function (req, res) {
     });
 });
 
+//QUESTION
 /*** END POINT FOR LIKING A QUESTION  BY CURRENTLY LOGGED IN USER */
 router.post('/question/:postId', function (req, res) {
 
@@ -123,6 +177,7 @@ router.delete('/question/:postId', function (req, res) {
     });
 });
 
+//STORY COMMENTS AND QUESTION ANSWERS
 /*** END POINT FOR LIKING A COMMENT BY CURRENTLY LOGGED IN USER */
 router.post('/story/:storyId/comment/:commentId', function (req, res) {
 

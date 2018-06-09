@@ -10,111 +10,21 @@ let Story = require('../../models/story');
 let arrayUtils = require('../../utils/array');
 let validator = require('../../utils/validator');
 
-/*** END POINT FOR GETTING POST OF BY CATEGORIES BY CURRENTLY LOGGED IN USER */
-router.get('/', function (req, res) {
-
-    let id = req.params.catId;
-
-    Story.aggregate([
-        {$match: {"category.categoryId": id}},
-        {$unwind: {path: "$category", preserveNullAndEmptyArrays: true}},
-        {$unwind: {path: "$category", preserveNullAndEmptyArrays: true}},
-        {$project: {comments:{$size :"$comments"},dislikes:{$size :"$dislikes"},likes:{$size :"$likes"}, category:1, story:1, postedOn:1,postedBy:1, title:1}},
-        {$sort:{date: -1}}
-
-    ], function (err, data) {
-        if (err) {
-            console.log(err);
-            return res.badRequest("Something unexpected happened");
-        }
-
-        Story.populate(data,{
-                'path': 'likes.userId dislikes.userId comments.commentedBy',
-                'select': 'name photoUrl email bio'
-            },
-
-            function (err, post) {
-
-                if (err) {
-                    console.log(err);
-                    return res.badRequest("Something unexpected happened");
-                }
-                if (!post) {
-                    return res.success([]);
-                }
-
-                res.success(post);
-            }
-        );
-    });
-});
-
-/*** END POINT FOR GETTING POST OF BY CATEGORIES BY CURRENTLY LOGGED IN USER */
-router.get('/:catId', function (req, res) {
-
-    let id = req.params.catId;
-
-    Story.aggregate([
-        {$match: {"category.categoryId": id}},
-        {$unwind: {path: "$category", preserveNullAndEmptyArrays: true}},
-        {$project: {comments:{$size :"$comments"}, dislikes:{$size :"$dislikes"},likes:{$size :"$likes"}, category:1, story:1, createdAt:1, postedBy:1, title:1}},
-        {$sort:{date: -1}}
-    ], function (err, data) {
-        if (err) {
-            console.log(err);
-            return res.badRequest("Something unexpected happened");
-        }
-
-        Story.populate(data,{
-                'path': 'likes.userId dislikes.userId comments.commentedBy',
-                'select': 'name photoUrl email bio'
-            },
-
-            function (err, post) {
-
-                if (err) {
-                    console.log(err);
-                    return res.badRequest("Something unexpected happened");
-                }
-                if (!post) {
-                    return res.success([]);
-                }
-
-                res.success(post);
-            }
-        );
-    });
-});
 
 /*** END POINT A POST BY ITS ID BY CURRENTLY LOGGED IN USERS */
-router.get('/s/:postId', function (req, res) {
+router.get('/s/:storyId', function (req, res) {
 
-    let postId = req.params.postId,
+    let storyId = req.params.storyId,
         userId = req.user.id;
-    Story.findOne({_id: postId})
+
+    Story.findOne({_id: storyId})
         .populate({
             path: 'postedBy',
             select: 'name photo'
         })
-        .populate({
-            path: 'comments.commentedBy',
-            select: 'name photo'
-        })
-        .populate({
-            path: 'likes.userId',
-            select: 'name photo'
-        })
-        .populate({
-            path: 'dislikes.userId',
-            select: 'name photo'
-        })
-        .populate({
-            path: 'views.userId',
-            select: 'name photo'
-        })
         .sort({date: -1})
         .exec(function (err, post) {
-            console.log(post)
+            console.log(post);
 
             if (err) {
                 return res.serverError("Something unexpected happened");
@@ -122,19 +32,15 @@ router.get('/s/:postId', function (req, res) {
             let info = {
                 story: post.story,
                 title: post.title,
-                postedOn: post.postedOn,
+                postedOn: post.createdAt,
                 postedBy: post.postedBy,
-                likes: post.likes,
-                nlikes: post.likes.length,
-                views: post.views,
-                nviews: post.views.length,
-                dislikes: post.dislikes,
-                ndislikes: post.dislikes.length,
-                ncomments: post.comments.length,
-                comments: post.comments
+                likes: post.likes.length,
+                views: post.views.length,
+                dislikes: post.dislikes.length,
+                comments: post.comments.length,
             };
             Story.update({
-                "_id": postId,
+                "_id": storyId,
                 "views": {
                     "$not": {
                         "$elemMatch": {
@@ -150,8 +56,7 @@ router.get('/s/:postId', function (req, res) {
                 }
             }, function (err) {
                if(err){
-                   console.log(err)
-                   res.badRequest('something unexpected happed')
+                   console.log(err);
                }
             res.success(info);
         });
@@ -168,7 +73,7 @@ router.post('/', function (req, res) {
     let validated = validator.isSentence(res, story )&&
                     validator.isCategory(res, cate_tags)&&
                     validator.isWord(res, title);
-    console.log(validated)
+
     if (!validated)
         return;
 
@@ -210,13 +115,13 @@ router.post('/', function (req, res) {
 });
 
 /*** END POINT FOR EDITING POST BY A CURRENTLY LOGGED IN USER */
-router.put('/:postId', function (req, res) {
+router.put('/:storyId', function (req, res) {
 
     let title = req.body.title,
         story = req.body.story,
         cate_tags = req.body.cate_tags;
 
-    if (!(title || tags || story || cate_tags)) {
+    if (!(title || story || cate_tags)) {
         return res.badRequest("please enter values to fields you will love to be updated");
     }
 
@@ -254,7 +159,7 @@ router.put('/:postId', function (req, res) {
 
     Story.findOneAndUpdate({
         query: {
-            _id: req.params.postId,
+            _id: req.params.storyId,
             postedBy: req.user.id
         }
     }, {$set: values}, {new: true}, function (err, post) {
@@ -272,28 +177,28 @@ router.delete('/:postId', function (req, res) {
 
     let id = req.params.postId;
 
-    Story.findOne({_id: id, postedBy: req.user.id}, function (err, post) {
-        if (err) {
-            console.log(err);
-            return res.badRequest("Some error occurred");
-        }
-        cloudinary.v2.uploader.destroy(post.public_id, function (err, result) {
-            if (err) {
-                console.log(err);
-                return res.badRequest("Some error occurred");
-            }
-            console.log(result);
+    // Story.findOne({_id: id, postedBy: req.user.id}, function (err, post) {
+    //     if (err) {
+    //         console.log(err);
+    //         return res.badRequest("Some error occurred");
+    //     }
+    //     cloudinary.v2.uploader.destroy(post.public_id, function (err, result) {
+    //         if (err) {
+    //             console.log(err);
+    //             return res.badRequest("Some error occurred");
+    //         }
+    //         console.log(result);
 
             Story.remove({_id: id, postedBy: req.user.id}, function (err, result) {
                 if (err) {
                     console.log(err);
                     return res.badRequest("Some error occurred");
                 }
-                console.log(result)
+                res.success('question successfully deleted')
             })
         });
-    });
-});
+//     });
+// });
 
 function cloudUpload(file,stream, callback) {
 

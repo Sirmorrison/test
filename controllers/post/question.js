@@ -10,69 +10,16 @@ let Question = require('../../models/question');
 let arrayUtils = require('../../utils/array');
 let validator = require('../../utils/validator');
 
-/*** END POINT FOR GETTING POST OF BY CATEGORIES BY CURRENTLY LOGGED IN USER */
-router.get('/:catId', function (req, res) {
-
-    let id = req.params.catId;
-
-    Question.aggregate([
-        {$match: {"category.categoryId": id}},
-        {$unwind: {path: "$category", preserveNullAndEmptyArrays: true}},
-        {$unwind: {path: "$category", preserveNullAndEmptyArrays: true}},
-        {$project: {comments:{$size :"$comments"},dislikes:{$size :"$dislikes"},likes:{$size :"$likes"}, category:1, story:1, postedOn:1,postedBy:1, title:1}},
-        {$sort:{date: -1}}
-
-    ], function (err, data) {
-        if (err) {
-            console.log(err);
-            return res.badRequest("Something unexpected happened");
-        }
-
-        Question.populate(data,{
-                'path': 'likes.userId dislikes.userId comments.commentedBy',
-                'select': 'name photoUrl email bio'
-            },
-
-            function (err, post) {
-
-                if (err) {
-                    console.log(err);
-                    return res.badRequest("Something unexpected happened");
-                }
-                if (!post) {
-                    return res.success([]);
-                }
-
-                res.success(post);
-            }
-        );
-    });
-});
 
 /*** END POINT A POST BY ITS ID BY CURRENTLY LOGGED IN USERS */
-router.get('/s/:postId', function (req, res) {
+router.get('/q/:questionId', function (req, res) {
 
-    let postId = req.params.postId,
+    let questionId = req.params.questionId,
         userId = req.user.id;
-    Question.findOne({_id: postId})
+
+    Question.findOne({_id: questionId})
         .populate({
             path: 'postedBy',
-            select: 'name photo'
-        })
-        .populate({
-            path: 'comments.commentedBy',
-            select: 'name photo'
-        })
-        .populate({
-            path: 'likes.userId',
-            select: 'name photo'
-        })
-        .populate({
-            path: 'dislikes.userId',
-            select: 'name photo'
-        })
-        .populate({
-            path: 'views.userId',
             select: 'name photo'
         })
         .sort({date: -1})
@@ -85,18 +32,15 @@ router.get('/s/:postId', function (req, res) {
             let info = {
                 story: post.story,
                 title: post.title,
-                postedOn: post.postedOn,
+                postedOn: post.createdAt,
                 postedBy: post.postedBy,
-                likes: post.likes,
                 nlikes: post.likes.length,
-                views: post.views,
                 nviews: post.views.length,
-                dislikes: post.dislikes,
                 ndislikes: post.dislikes.length,
                 comments: post.comments.length
             };
             Question.update({
-                "_id": postId,
+                "_id": questionId,
                 "views": {
                     "$not": {
                         "$elemMatch": {
@@ -113,7 +57,6 @@ router.get('/s/:postId', function (req, res) {
             }, function (err) {
                 if(err){
                     console.log(err)
-                    res.badRequest('something unexpected happed')
                 }
                 res.success(info);
             });
@@ -124,13 +67,11 @@ router.get('/s/:postId', function (req, res) {
 router.post('/', function (req, res) {
 
     let story = req.body.story,
-        title = req.body.title,
         cate_tags = req.body.category;
 
     let validated = validator.isSentence(res, story )&&
-        validator.isCategory(res, cate_tags)&&
-        validator.isWord(res, title);
-    console.log(validated)
+        validator.isCategory(res, cate_tags);
+
     if (!validated)
         return;
 
@@ -148,7 +89,6 @@ router.post('/', function (req, res) {
     }
 
     let data = {
-        title: title,
         story: story,
         postedBy: req.user.id,
         category: categoryTags
@@ -162,7 +102,6 @@ router.post('/', function (req, res) {
 
         let data = {
             postId : post._id,
-            title: post.title,
             story: post.story,
             postedOn: post.postedOn,
             category: post.category
@@ -172,25 +111,18 @@ router.post('/', function (req, res) {
 });
 
 /*** END POINT FOR EDITING POST BY A CURRENTLY LOGGED IN USER */
-router.put('/:postId', function (req, res) {
+router.put('/:questionId', function (req, res) {
 
-    let title = req.body.title,
-        story = req.body.story,
+    let story = req.body.story,
         cate_tags = req.body.cate_tags;
 
-    if (!(title || tags || story || cate_tags)) {
+    if (!(story || cate_tags)) {
         return res.badRequest("please enter values to fields you will love to be updated");
     }
 
     let values = {};
     values.postedBy = req.user.id;
 
-    if (title) {
-        let vmess = validator.isSentence(res, title);
-        if (!vmess)
-            return;
-        values.title = title;
-    }
     if (story) {
         let vmess = validator.isSentence(res, story);
         if (!vmess)
@@ -216,7 +148,7 @@ router.put('/:postId', function (req, res) {
 
     Question.findOneAndUpdate({
         query: {
-            _id: req.params.postId,
+            _id: req.params.questionId,
             postedBy: req.user.id
         }
     }, {$set: values}, {new: true}, function (err, post) {
@@ -230,32 +162,34 @@ router.put('/:postId', function (req, res) {
 });
 
 /*** END POINT FOR DELETING A POST BY A CURRENTLY LOGGED IN USER */
-router.delete('/:postId', function (req, res) {
+router.delete('/:questionId', function (req, res) {
 
-    let id = req.params.postId;
+    let id = req.params.questionId;
 
-    Question.findOne({_id: id, postedBy: req.user.id}, function (err, post) {
-        if (err) {
-            console.log(err);
-            return res.badRequest("Some error occurred");
-        }
-        cloudinary.v2.uploader.destroy(post.public_id, function (err, result) {
-            if (err) {
-                console.log(err);
-                return res.badRequest("Some error occurred");
-            }
-            console.log(result);
+    // Question.findOne({_id: id, postedBy: req.user.id}, function (err, post) {
+    //     if (err) {
+    //         console.log(err);
+    //         return res.badRequest("Some error occurred");
+    //     }
+    //     cloudinary.v2.uploader.destroy(post.public_id, function (err, result) {
+    //         if (err) {
+    //             console.log(err);
+    //             return res.badRequest("Some error occurred");
+    //         }
+    //         console.log(result);
 
             Question.remove({_id: id, postedBy: req.user.id}, function (err, result) {
                 if (err) {
                     console.log(err);
                     return res.badRequest("Some error occurred");
                 }
-                console.log(result)
+
+                console.log(result);
+                res.success('question successfully deleted')
             })
         });
-    });
-});
+//     });
+// });
 
 function cloudUpload(file,stream, callback) {
 

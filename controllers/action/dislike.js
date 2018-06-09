@@ -4,6 +4,60 @@ let router = express.Router();
 let Story = require('../../models/story');
 let Question = require('../../models/question');
 
+//GET DISLIKES
+/*** END POINT FOR GETTING THE DISLIKES ON A STORIES ANSWER OF A USER BY LOGGED IN USERS*/
+router.get('/:storyId/:commentId', function (req, res) {
+
+    let storyId = req.params.storyId,
+        commentId = req.params.commentId;
+
+    Story.findOne({_id: storyId})
+        .populate({
+            path: 'comments.dislikes.userId',
+            select: 'name photoUrl public_id'
+        })
+        .sort({date: -1})
+        .exec(function (err, post) {
+            console.log(post);
+            if (err) {
+                return res.serverError("Something unexpected happened");
+            }
+            if (!post){
+                return res.success('no post found with the id provided')
+            }
+
+            res.success(post.comments.id(commentId).dislikes);
+        }
+    );
+});
+
+/*** END POINT FOR GETTING THE DISLIKES ON A QUESTIONS ANSWER OF A USER BY LOGGED IN USERS*/
+router.get('/:questionId/:answerId', function (req, res) {
+
+    let questionId = req.params.questionId,
+        answerId = req.params.answerId;
+
+    Question.findOne({_id: questionId})
+        .populate({
+            path: 'answers.dislikes.userId',
+            select: 'name photoUrl public_id'
+        })
+        .sort({date: -1})
+        .exec(function (err, post) {
+                console.log(post);
+                if (err) {
+                    return res.serverError("Something unexpected happened");
+                }
+                if (!post){
+                    return res.success('no post found with the id provided')
+                }
+
+                res.success(post.answers.id(answerId).dislikes);
+            }
+        );
+});
+
+//POST DISLIKE
 /*** END POINT FOR DISLIKING A POST  BY CURRENTLY LOGGED IN USER */
 router.post('/story/:postId', function (req, res) {
 
@@ -45,26 +99,6 @@ router.post('/story/:postId', function (req, res) {
     });
 });
 
-/*** END POINT FOR DELETING DISLIKING OF A POST BY CURRENTLY LOGGED IN USER */
-router.delete('/story/:postId', function (req, res) {
-    let updateOperation = {
-        '$pull': {
-            'dislikes': {
-                'userId': req.user.id
-            }
-        }
-    };
-
-    Story.update({_id: req.params.postId}, updateOperation, function (err) {
-        if (err) {
-            console.log(err);
-            return res.badRequest("Some error occurred");
-        }
-
-        res.success({disliked: false});
-    });
-});
-
 /*** END POINT FOR DISLIKING OF A QUESTION  BY CURRENTLY LOGGED IN USER */
 router.post('/question/:postId', function (req, res) {
 
@@ -101,26 +135,6 @@ router.post('/question/:postId', function (req, res) {
             return res.success('you have either liked or disliked this post')
         }
         res.success({liked: true});
-    });
-});
-
-/*** END POINT FOR DELETING DISLIKING OF A QUESTION OF A POST BY CURRENTLY LOGGED IN USER */
-router.delete('/question/:postId', function (req, res) {
-    let updateOperation = {
-        '$pull': {
-            'likes': {
-                'userId': req.user.id
-            }
-        }
-    };
-
-    Question.update({_id: req.params.postId}, updateOperation, function (err) {
-        if (err) {
-            console.log(err);
-            return res.badRequest("Some error occurred");
-        }
-
-        res.success({liked: false});
     });
 });
 
@@ -166,29 +180,6 @@ router.post('/story/:storyId/comment/:commentId', function (req, res) {
     });
 });
 
-/*** END POINT FOR DELETING COMMENT LIKE OF A POST BY CURRENTLY LOGGED IN USER */
-router.delete('/story/:storyId/comment/:commentId', function (req, res) {
-    let userId = req.user.id;
-    let storyId = req.params.storyId;
-    let commentId = req.params.commentId;
-    let updateOperation = {
-        $pull: {
-            'comments.$.dislikes': {
-                userId: userId
-            }
-        }
-    };
-
-    Story.update({'_id': storyId, 'comments._id': commentId}, updateOperation, function (err, g) {
-        if (err) {
-            console.log(err);
-            return res.badRequest("Some error occurred");
-        }
-
-        res.success({liked: false});
-    });
-});
-
 /*** END POINT FOR LIKING AN ANSWER  BY CURRENTLY LOGGED IN USER */
 router.post('/question/:questionId/answer/:answerId', function (req, res) {
 
@@ -231,6 +222,47 @@ router.post('/question/:questionId/answer/:answerId', function (req, res) {
     });
 });
 
+//DELETE DISLIKE
+/*** END POINT FOR DELETING DISLIKING OF A POST BY CURRENTLY LOGGED IN USER */
+router.delete('/story/:postId', function (req, res) {
+    let updateOperation = {
+        '$pull': {
+            'dislikes': {
+                'userId': req.user.id
+            }
+        }
+    };
+
+    Story.update({_id: req.params.postId}, updateOperation, function (err) {
+        if (err) {
+            console.log(err);
+            return res.badRequest("Some error occurred");
+        }
+
+        res.success({disliked: false});
+    });
+});
+
+/*** END POINT FOR DELETING DISLIKING OF A QUESTION OF A POST BY CURRENTLY LOGGED IN USER */
+router.delete('/question/:postId', function (req, res) {
+    let updateOperation = {
+        '$pull': {
+            'likes': {
+                'userId': req.user.id
+            }
+        }
+    };
+
+    Question.update({_id: req.params.postId}, updateOperation, function (err) {
+        if (err) {
+            console.log(err);
+            return res.badRequest("Some error occurred");
+        }
+
+        res.success({liked: false});
+    });
+});
+
 /*** END POINT FOR DELETING ANSWER LIKE OF A POST BY CURRENTLY LOGGED IN USER */
 router.delete('/question/:questionId/answer/:answerId', function (req, res) {
     let userId = req.user.id;
@@ -245,6 +277,29 @@ router.delete('/question/:questionId/answer/:answerId', function (req, res) {
     };
 
     Story.update({'_id': questionId, 'answers._id': answerId}, updateOperation, function (err, g) {
+        if (err) {
+            console.log(err);
+            return res.badRequest("Some error occurred");
+        }
+
+        res.success({liked: false});
+    });
+});
+
+/*** END POINT FOR DELETING COMMENT LIKE OF A POST BY CURRENTLY LOGGED IN USER */
+router.delete('/story/:storyId/comment/:commentId', function (req, res) {
+    let userId = req.user.id;
+    let storyId = req.params.storyId;
+    let commentId = req.params.commentId;
+    let updateOperation = {
+        $pull: {
+            'comments.$.dislikes': {
+                userId: userId
+            }
+        }
+    };
+
+    Story.update({'_id': storyId, 'comments._id': commentId}, updateOperation, function (err, g) {
         if (err) {
             console.log(err);
             return res.badRequest("Some error occurred");
