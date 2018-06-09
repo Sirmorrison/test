@@ -24,6 +24,7 @@ let questionFields = {
     dislikes: [userIdSchema],
     views: [userIdSchema],
     answers: [answerSchema],
+    bookmarks:[userIdSchema],
     postedBy: {
         type: mongoose.Schema.Types.String,
         ref: 'User',

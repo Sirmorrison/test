@@ -24,6 +24,7 @@ let storyFields = {
     dislikes: [userIdSchema],
     views: [userIdSchema],
     comments: [commentSchema],
+    bookmarks:[userIdSchema],
     postedBy: {
         type: mongoose.Schema.Types.String,
         ref: 'User',
