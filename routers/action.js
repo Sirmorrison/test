@@ -21,4 +21,7 @@ router.use('/like', protector.protect, like);
 let rating = require('../controllers/action/rating');
 router.use('/rating', protector.protect, rating);
 
+let bookmark = require('../controllers/action/bookmark');
+router.use('/bookmark', protector.protect, bookmark);
+
 module.exports = router;
