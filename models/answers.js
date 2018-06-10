@@ -16,4 +16,6 @@ module.exports = {
     },
     likes: [userIdSchema],
     dislikes: [userIdSchema],
+    views: [userIdSchema],
+    bookmarks:[userIdSchema],
 };

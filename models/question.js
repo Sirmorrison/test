@@ -15,16 +15,9 @@ let questionFields = {
         type:String,
         required: true
     },
-    title: {
-        type:String,
-        required: true
-    },
     category:[categorySchema],
-    likes: [userIdSchema],
-    dislikes: [userIdSchema],
     views: [userIdSchema],
     answers: [answerSchema],
-    bookmarks:[userIdSchema],
     postedBy: {
         type: mongoose.Schema.Types.String,
         ref: 'User',

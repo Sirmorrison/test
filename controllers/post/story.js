@@ -1,6 +1,7 @@
 let express = require('express');
 let router = express.Router();
 let fs = require('fs');
+let mongoose = require("mongoose");
 
 const config = require('../../config');
 let cloudinary = require('cloudinary');
@@ -11,55 +12,74 @@ let arrayUtils = require('../../utils/array');
 let validator = require('../../utils/validator');
 
 
-/*** END POINT A POST BY ITS ID BY CURRENTLY LOGGED IN USERS */
-router.get('/s/:storyId', function (req, res) {
-
+/*** END POINT FOR GETTING THE COMMENTS ON A STORY OF A USER BY LOGGED IN USERS*/
+router.get('/:storyId', function (req, res) {
     let storyId = req.params.storyId,
-        userId = req.user.id;
+        userId = req.user.id,
+        id = mongoose.Types.ObjectId(storyId);
 
-    Story.findOne({_id: storyId})
-        .populate({
-            path: 'postedBy',
-            select: 'name photo'
-        })
-        .sort({date: -1})
-        .exec(function (err, post) {
-            console.log(post);
+    Story.update({
+        "_id": storyId,
+        "views": {
+            "$not": {
+                "$elemMatch": {
+                    "userId": userId
+                }
+            }
+        }
+    }, {
+        $addToSet: {
+            views: {
+                "userId": userId
+            }
+        }
+    }, function (err) {
+        if(err){
+            console.log(err)
+        }
+
+        Story.aggregate([
+        {$match: {"_id" : id}},
+        {$project: {comments: {
+            $map: {
+                input: '$comments',
+                as: "element",
+                in: {
+                    commentId: "$$element._id",
+                    comment: "$$element.comment",
+                    commentedOn: '$$element.createdAt',
+                    commentedBy: '$$element.commentedBy',
+                    likes: { $size: "$$element.likes" },
+                    dislikes: { $size: "$$element.dislikes" }
+                }
+            }
+        }, story:1, postedBy:1, views: { $size: "$views" }}},
+    ], function (err, data) {
 
             if (err) {
-                return res.serverError("Something unexpected happened");
+                console.log(err);
+                return res.badRequest("Something unexpected happened");
             }
-            let info = {
-                story: post.story,
-                title: post.title,
-                postedOn: post.createdAt,
-                postedBy: post.postedBy,
-                likes: post.likes.length,
-                views: post.views.length,
-                dislikes: post.dislikes.length,
-                comments: post.comments.length,
-            };
-            Story.update({
-                "_id": storyId,
-                "views": {
-                    "$not": {
-                        "$elemMatch": {
-                            "userId": userId
-                        }
+
+            Story.populate(data, {
+                    'path': 'comments.commentedBy',
+                    'select': 'name email photoUrl public_id'
+                },
+
+                function (err, post) {
+
+                    if (err) {
+                        console.log(err);
+                        return res.badRequest("Something unexpected happened");
                     }
-                }
-            }, {
-                $addToSet: {
-                    views: {
-                        "userId": userId
+                    if (!post) {
+                        return res.success([]);
                     }
+
+                    res.success(post);
                 }
-            }, function (err) {
-               if(err){
-                   console.log(err);
-               }
-            res.success(info);
-        });
+            );
+        })
     });
 });
 
@@ -119,10 +139,13 @@ router.put('/:storyId', function (req, res) {
 
     let title = req.body.title,
         story = req.body.story,
-        cate_tags = req.body.cate_tags;
+        cate_tags = req.body.category;
 
     if (!(title || story || cate_tags)) {
         return res.badRequest("please enter values to fields you will love to be updated");
+    }
+    if (cate_tags && !Array.isArray(cate_tags)){
+        return res.badRequest('Tagged should be a json array of user Ids (string)')
     }
 
     let values = {};
@@ -140,9 +163,9 @@ router.put('/:storyId', function (req, res) {
             return;
         values.story = story;
     }
-    if (cate_tags && !Array.isArray(cate_tags)) {
-        return res.badRequest('Tagged should be a json array of user Ids (string)')
-    } else {
+
+    if (cate_tags) {
+
         //remove duplicates before proceeding
         arrayUtils.removeDuplicates(cate_tags);
 
@@ -157,19 +180,36 @@ router.put('/:storyId', function (req, res) {
         }
     }
 
-    Story.findOneAndUpdate({
-        query: {
-            _id: req.params.storyId,
-            postedBy: req.user.id
+    Story.findOneAndUpdate({_id: req.params.storyId, postedBy: req.user.id},
+        {$set: values}, {new: true})
+        .populate({
+            path: 'postedBy',
+            select: 'name'
+        })
+        .populate({
+            path: 'category.categoryId',
+            select: 'title'
+        })
+        .exec(function (err, post) {
+            if (err) {
+                console.log(err);
+                return res.serverError("Something unexpected happened");
+            }
+            if (post === null) {
+                return res.notAllowed("you re not allowed to perform this action");
+            }
+            let data = {
+                storyId: post._id,
+                createdAt:post.createdAt,
+                updatedAt:post.updatedAt,
+                title: post.title,
+                story: post.story,
+                postedBy: post.postedBy,
+                category: post.category
+            };
+            res.success(data);
         }
-    }, {$set: values}, {new: true}, function (err, post) {
-
-        if (err) {
-            return res.serverError("Something unexpected happened");
-        }
-
-        res.success(post);
-    });
+    );
 });
 
 /*** END POINT FOR DELETING A POST BY A CURRENTLY LOGGED IN USER */
@@ -188,7 +228,6 @@ router.delete('/:postId', function (req, res) {
     //             return res.badRequest("Some error occurred");
     //         }
     //         console.log(result);
-
             Story.remove({_id: id, postedBy: req.user.id}, function (err, result) {
                 if (err) {
                     console.log(err);

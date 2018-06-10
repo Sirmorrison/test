@@ -17,7 +17,6 @@ router.get('/:storyId/:commentId', function (req, res) {
         })
         .sort({date: -1})
         .exec(function (err, post) {
-        console.log(post);
                 if (err) {
                     return res.serverError("Something unexpected happened");
                 }
@@ -227,7 +226,7 @@ router.post('/question/:questionId/answer/:answerId', function (req, res) {
     let questionId = req.params.questionId;
     let answerId = req.params.answerId;
 
-    Story.update({
+    Question.update({
         "_id": questionId,
         'answers._id': answerId,
         "answers.dislikes": {

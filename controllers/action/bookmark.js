@@ -41,8 +41,8 @@ router.get('/story', function (req, res) {
     });
 });
 
-/*** END POINT FOR GETTING BOOKMARKED QUESTION OF CURRENTLY LOGGED IN USER */
-router.get('/question', function (req, res) {
+/*** END POINT FOR GETTING BOOKMARKED ANSWERS OF CURRENTLY LOGGED IN USER */
+router.get('/answer', function (req, res) {
 
     let id = req.user.id;
     Question.aggregate([
@@ -128,7 +128,7 @@ router.post('/:storyId', function (req, res) {
 });
 
 /*** END POINT FOR BOOKMARKING A QUESTION  BY CURRENTLY LOGGED IN USER */
-router.post('/:questionId', function (req, res) {
+router.post('/:answerId', function (req, res) {
 
     let userId = req.user.id;
     let questionId = req.params.questionId;

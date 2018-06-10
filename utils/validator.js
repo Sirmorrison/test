@@ -138,3 +138,15 @@ exports.isFile = function(res, file, optional){
 
     return true;
 };
+
+exports.isFile = function(res, file, optional){
+    if (!optional && !file) {
+        return res.badRequest('File to be uploaded is required');
+    }
+
+    if (typeof(file.path) !== 'string' || file.path.trim().length <= 0 ){
+        return res.badRequest('File to be uploaded is required and must be string')
+    }
+
+    return true;
+};

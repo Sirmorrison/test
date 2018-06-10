@@ -1,82 +1,54 @@
 let express = require('express');
 let router = express.Router();
-let mongoose = require("mongoose");
 
 let Question = require('../../models/question');
 let validator = require('../../utils/validator');
 
-/*** END POINT FOR GETTING THE ANSWERS ON A QUESTION OF A USER BY LOGGED IN USERS*/
-router.get('/:questionId', function (req, res) {
-    let questionId = req.params.questionId,
-        id = mongoose.Types.ObjectId(questionId);
-
-    Question.aggregate([
-        {$match: {"_id" : id}},
-        {$project: {answers: {
-            $map: {
-                input: '$answers',
-                as: "element",
-                in: {
-                    answerId: "$$element._id",
-                    answer: "$$element.answer",
-                    answeredOn: '$$element.createdAt',
-                    answeredBy: '$$element.answeredBy',
-                    likes: { $size: "$$element.likes" },
-                    dislikes: { $size: "$$element.dislikes" }
-                }
-            }
-        }, question:1}},
-        {$sort: {createdAt: -1}},
-    ], function (err, data) {
-
-        if (err) {
-            console.log(err);
-            return res.badRequest("Something unexpected happened");
-        }
-
-        Question.populate(data,{
-                'path': 'answers.answeredBy',
-                'select': 'name email photoUrl public_id'
-            },
-
-            function (err, post) {
-
-                if (err) {
-                    console.log(err);
-                    return res.badRequest("Something unexpected happened");
-                }
-                if (!post) {
-                    return res.success([]);
-                }
-
-                res.success(post);
-            }
-        );
-    });
-});
 
 /*** END POINT FOR GETTING AN ANSWERS TO A QUESTION OF A USER BY LOGGED IN USERS*/
 router.get('/:questionId/:answerId', function (req, res) {
     let questionId = req.params.questionId,
+        userId = req.user.id,
         answerId = req.params.answerId;
 
+    Question.update({
+        "_id": questionId,
+        'answers._id': answerId,
+        "answers.views": {
+            "$not": {
+                "$elemMatch": {
+                    "userId": userId
+                }
+            }
+        }
+    }, {
+        $addToSet: {
+            'answers.$.views': {
+                "userId": userId
+            }
+        }
+    },function (err) {
+        if (err) {
+            console.log(err);
+        }
         Question.findOne({_id: questionId})
-        .populate({
-            path: 'views.userId',
-            select: 'name photoUrl public_id'
-        })
-        .sort({date: -1})
-        .exec(function (err, post) {
+            .populate({
+                path: 'views.userId',
+                select: 'name photoUrl public_id'
+            })
+            .sort({date: -1})
+            .exec(function (err, post) {
                 if (err) {
                     return res.serverError("Something unexpected happened");
                 }
-                if (!post){
-                    return res.success('no post found with the id provided')
+                if (!post) {
+                    return res.success('no answer found with the id provided')
                 }
 
-            res.success(post.answers.id(answerId));
+                res.success(post.answers.id(answerId));
             }
         );
+    })
 });
 
 /*** END POINT FOR COMMENTING ON A POST OF A USER BY ANOTHER CURRENTLY LOGGED IN USER */

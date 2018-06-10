@@ -69,7 +69,7 @@ router.get('/question/:catId', function (req, res) {
     Question.aggregate([
         {$match: {"category.categoryId": id}},
         {$unwind: {path: "$category", preserveNullAndEmptyArrays: true}},
-        {$project: {answers:{$size :"$answers"},dislikes:{$size :"$dislikes"},likes:{$size :"$likes"}, views:{$size :"$views"}, createdAt:1, postedBy:1, question:1}},
+        {$project: {answers:{$size :"$answers"}, views:{$size :"$views"}, createdAt:1, postedBy:1, question:1}},
         {$sort:{date: -1}}
 
     ], function (err, data) {
@@ -240,7 +240,7 @@ router.get('/likes/:storyId', function (req, res) {
                 return res.success('no post found with the id provided')
             }
 
-            res.success({dislikes: post.dislikes, title: post.title});
+            res.success({likes: post.likes, title: post.title});
         }
     );
 });
@@ -264,7 +264,6 @@ router.get('likes/:questionId', function (req, res) {
                     return res.success('no post found with the id provided')
                 }
                 let info = {
-                    question: post.question,
                     dislikes: post.dislikes,
                 };
                 res.success(info);
