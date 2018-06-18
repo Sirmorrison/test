@@ -7,14 +7,21 @@ const validator = require('../../utils/validator');
 
 /*** END POINT FOR GETTING BUSINESS CATEGORIES BY USER */
 router.get('/', function (req, res) {
+    let userId = req.user.id;
 
-    Category.find({}, {title:1},function (err, result) {
+    userVerify(userId, function (err) {
         if (err) {
             console.log(err);
-            return res.badRequest("Something unexpected happened");
+            return res.badRequest(err);
         }
+        Category.find({}, {title: 1}, function (err, result) {
+            if (err) {
+                console.log(err);
+                return res.badRequest("Something unexpected happened");
+            }
 
-        res.success(result);
+            res.success(result);
+        })
     })
 });
 
@@ -64,7 +71,7 @@ router.post('/', function (req, res) {
 });
 
 /*** END POINT FOR EDITING BUSINESS CATEGORIES BY ADMIN USER */
-router.post('/biz/:catId', function (req, res) {
+router.put('/:catId', function (req, res) {
     let userId = req.user.id,
         title = req.body.title,
         catId = req.params.catId;
@@ -106,7 +113,7 @@ router.post('/biz/:catId', function (req, res) {
 });
 
 /*** END POINT FOR EDITING BUSINESS CATEGORIES BY ADMIN USER */
-router.post('/biz/:catId', function (req, res) {
+router.delete('/:catId', function (req, res) {
     let userId = req.user.id,
         catId = req.params.catId;
 

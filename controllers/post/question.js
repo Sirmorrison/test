@@ -10,6 +10,7 @@ cloudinary.config(config.cloudinary);
 let Question = require('../../models/question');
 let arrayUtils = require('../../utils/array');
 let validator = require('../../utils/validator');
+let User = require('../../models/user');
 
 
 // /*** END POINT A POST BY ITS ID BY CURRENTLY LOGGED IN USERS */
@@ -136,7 +137,8 @@ router.get('/:questionId', function (req, res) {
 /*** END POINT FOR POST CREATION CONTAINING FILE TO BE UPLOADED BY A CURRENTLY LOGGED IN USER */
 router.post('/', function (req, res) {
 
-    let question = req.body.question,
+    let userId = req.user.id,
+        question = req.body.question,
         cate_tags = req.body.category;
 
     let validated = validator.isSentence(res, question )&&
@@ -160,7 +162,7 @@ router.post('/', function (req, res) {
 
     let data = {
         question: question,
-        postedBy: req.user.id,
+        postedBy: userId,
         category: categoryTags
     };
 
@@ -170,6 +172,14 @@ router.post('/', function (req, res) {
             return res.serverError("Something unexpected happened");
         }
 
+        User.update(
+            {"_id": userId},
+            {$inc: {rating: 100}}, function (err) {
+                if (err) {
+                    console.log(err);
+                }
+            }
+        );
         let data = {
             postId : post._id,
             question: post.question,

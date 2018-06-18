@@ -3,6 +3,7 @@ let router = express.Router();
 
 let Story = require('../../models/story');
 let Question = require('../../models/question');
+let User = require('../../models/user');
 
 //GET DISLIKES
 /*** END POINT FOR GETTING THE DISLIKES ON A STORIES ANSWER OF A USER BY LOGGED IN USERS*/
@@ -95,6 +96,16 @@ router.post('/story/:postId', function (req, res) {
             return res.success('you have either liked or disliked this post')
         }
 
+        User.update(
+            {"_id": userId},
+            {$inc: {rating: 10}}, function (err, f) {
+                if (err) {
+                    console.log(err);
+                }
+            }
+        );
+        postedBy(postId, function (err) {});
+
         res.success({disliked: true});
     });
 });
@@ -134,7 +145,7 @@ router.post('/question/:postId', function (req, res) {
         if(f.nModified === 0){
             return res.success('you have either liked or disliked this post')
         }
-        res.success({liked: true});
+        res.success({disliked: true});
     });
 });
 
@@ -176,7 +187,7 @@ router.post('/story/:storyId/comment/:commentId', function (req, res) {
         if(f.nModified === 0){
             return res.success('you have either liked or disliked this post')
         }
-        res.success({liked: true});
+        res.success({disliked: true});
     });
 });
 
@@ -187,7 +198,7 @@ router.post('/question/:questionId/answer/:answerId', function (req, res) {
     let questionId = req.params.questionId;
     let answerId = req.params.answerId;
 
-    Story.update({
+    Question.update({
         "_id": questionId,
         'answers._id': answerId,
         "answers.dislikes": {
@@ -218,7 +229,17 @@ router.post('/question/:questionId/answer/:answerId', function (req, res) {
         if(f.nModified === 0){
             return res.success('you have either liked or disliked this post')
         }
-        res.success({liked: true});
+        User.update(
+            {"_id": userId},
+            {$inc: {rating: 10}}, function (err) {
+                if (err) {
+                    console.log(err);
+                }
+            }
+        );
+        answeredBy(questionId, answerId);
+
+        res.success({disliked: true});
     });
 });
 
@@ -259,7 +280,7 @@ router.delete('/question/:postId', function (req, res) {
             return res.badRequest("Some error occurred");
         }
 
-        res.success({liked: false});
+        res.success({disliked: false});
     });
 });
 
@@ -282,7 +303,7 @@ router.delete('/question/:questionId/answer/:answerId', function (req, res) {
             return res.badRequest("Some error occurred");
         }
 
-        res.success({liked: false});
+        res.success({disliked: false});
     });
 });
 
@@ -305,8 +326,51 @@ router.delete('/story/:storyId/comment/:commentId', function (req, res) {
             return res.badRequest("Some error occurred");
         }
 
-        res.success({liked: false});
+        res.success({disliked: false});
     });
 });
+
+function postedBy(postId, callback) {
+    Story.findById(postId, function (err, data) {
+        if (err) {
+            console.log(err);
+            return callback("Something unexpected happened");
+        }
+        if (!data) {
+            return callback("not found");
+        }
+
+        let userId = data.postedBy;
+        User.update(
+            {"_id": userId},
+            {$inc: {rating: -100}}, function (err) {
+                if (err) {
+                    console.log(err);
+                    return callback("Something unexpected happened");
+                }
+            }
+        );
+    });
+}
+
+function answeredBy(questionId, answerId, callback) {
+    Question.findById(questionId, function (err, data) {
+        if (err) {
+            console.log(err);
+            return callback("Something unexpected happened");
+        }
+
+        let userId = data.answers.id(answerId).answeredBy;
+        User.update(
+            {"_id": userId},
+            {$inc: {rating: -100}}, function (err, f) {
+                if (err) {
+                    console.log(err);
+                    return callback("Something unexpected happened");
+                }
+            }
+        );
+    });
+}
 
 module.exports = router;

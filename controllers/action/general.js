@@ -6,6 +6,7 @@ let Package = require('../../models/packages'),
     Story = require('../../models/story'),
     Question = require('../../models/question'),
     User = require('../../models/user');
+let Blog = require('../../models/blog');
 
 //PAYMENT PACKAGES
 /*** END POINT FOR GETTING PLAN PACKAGES BY ALL USER */
@@ -21,7 +22,7 @@ router.get('/packages', function (req, res) {
     })
 });
 
-//STORIES AND QUESTIONS
+//STORIES
 /*** END POINT FOR GETTING STORY OF BY CATEGORIES BY CURRENTLY LOGGED IN USER */
 router.get('/story/:catId', function (req, res) {
 
@@ -60,6 +61,42 @@ router.get('/story/:catId', function (req, res) {
     });
 });
 
+/*** END POINT FOR GETTING POST OF BY CATEGORIES BY CURRENTLY LOGGED IN USER */
+router.get('/trending/story', function (req, res) {
+
+    Story.aggregate([
+        {$project: {comments:{$size :"$comments"}, title:1, createdAt:1,postedBy:1}},
+        {$sort: {comments: -1}},
+        {$limit: 5}
+
+    ], function (err, data) {
+        if (err) {
+            console.log(err);
+            return res.badRequest("Something unexpected happened");
+        }
+
+        Story.populate(data,{
+                'path': 'postedBy',
+                'select': 'name email'
+            },
+
+            function (err, post) {
+
+                if (err) {
+                    console.log(err);
+                    return res.badRequest("Something unexpected happened");
+                }
+                if (!post) {
+                    return res.success([]);
+                }
+
+                res.success(post);
+            }
+        );
+    });
+});
+
+//QUESTIONS
 /*** END POINT FOR GETTING QUESTION OF BY CATEGORIES BY CURRENTLY LOGGED IN USER */
 router.get('/question/:catId', function (req, res) {
 
@@ -81,41 +118,6 @@ router.get('/question/:catId', function (req, res) {
         Question.populate(data,{
                 'path': 'postedBy',
                 'select': 'name photoUrl public_id title'
-            },
-
-            function (err, post) {
-
-                if (err) {
-                    console.log(err);
-                    return res.badRequest("Something unexpected happened");
-                }
-                if (!post) {
-                    return res.success([]);
-                }
-
-                res.success(post);
-            }
-        );
-    });
-});
-
-/*** END POINT FOR GETTING POST OF BY CATEGORIES BY CURRENTLY LOGGED IN USER */
-router.get('/trending/story', function (req, res) {
-
-    Story.aggregate([
-        {$project: {comments:{$size :"$comments"}, title:1, createdAt:1,postedBy:1}},
-        {$sort: {comments: -1}},
-        {$limit: 5}
-
-    ], function (err, data) {
-        if (err) {
-            console.log(err);
-            return res.badRequest("Something unexpected happened");
-        }
-
-        Story.populate(data,{
-                'path': 'postedBy',
-                'select': 'name email'
             },
 
             function (err, post) {
@@ -326,26 +328,103 @@ router.get('dislike/:questionId', function (req, res) {
         );
 });
 
-//USER PROFILE
-/*** END POINT FOR GETTING A USER PROFILE BY OTHER USERS */
-router.get('/:userId', function(req, res) {
-    let id = req.params.userId;
+//BLOG
+/*** END POINT FOR GETTING BLOG POST BY USERS */
+router.get('/blog', function(req, res) {
 
-    User.aggregate([
-        {$match: {'_id': id}},
-        {$unwind: {path: "$rating", preserveNullAndEmptyArrays: true}},
-        {$unwind: {path: "$categoryTags", preserveNullAndEmptyArrays: true}},
-        {$project: {totalFollowing:{$size :"$following"},totalFollowers:{$size :"$followers"},email:1,
-            phone_number:1, rating:1, bio:1,photoUrl:1, public_id:1, profession:1, name:1, Rating:{$avg :"$rating.rating"},
-            followers:1, following:1, createdAt: 1, address:1
-        }},
+    Blog.aggregate([
+        {$project: {comments:{$size :"$comments"}, title:1, createdAt:1, postedBy:1,
+            message:1, public_id:1, mediaUr: 1}},
+        {$sort: {date: -1}},
+        {$limit: 10}
+    ], function (err, data) {
+        if (err) {
+            console.log(err);
+            return res.badRequest("Something unexpected happened");
+        }
+        User.populate(data, {
+                'path': 'postedBy',
+                'select': 'name photoUrl email bio'
+            },
+            function (err, data) {
+                if (err) {
+                    console.log(err);
+                    return res.badRequest("Something unexpected happened");
+                }
+
+                res.success(data);
+            }
+        );
+    })
+});
+
+/*** END POINT FOR GETTING BLOG POST BY THE ID BY USERS*/
+router.get('/blog/:blogId', function (req, res) {
+    let blogId = req.params.blogId,
+        id = mongoose.Types.ObjectId(blogId);
+
+    Blog.aggregate([
+        {$match: {"_id" : id}},
+        {$project: {comments: {
+            $map: {
+                input: '$comments',
+                as: "element",
+                in: {
+                    commentId: "$$element._id",
+                    comment: "$$element.comment",
+                    commentedOn: '$$element.createdAt',
+                    commentedBy: '$$element.commentedBy'
+                }
+            }
+        }, title:1, message:1, postedBy:1, createdAt:1}},
     ], function (err, data) {
         if (err) {
             console.log(err);
             return res.badRequest("Something unexpected happened");
         }
 
-        User.populate(data,{
+        Blog.populate(data, {
+                'path': 'comments.commentedBy',
+                'select': 'name email photoUrl public_id'
+            },
+            function (err, post) {
+                if (err) {
+                    console.log(err);
+                    return res.badRequest("Something unexpected happened");
+                }
+
+                res.success(post);
+            }
+        );
+    })
+});
+
+//USER PROFILE
+/*** END POINT FOR GETTING A USER PROFILE BY OTHER USERS */
+router.get('/:userId', function(req, res) {
+    let id = req.params.userId;
+
+    ranking(id, function (err, user) {
+        if (err) {
+            console.log(err);
+            return res.badRequest("Something unexpected happened");
+        }
+        console.log(user);
+        User.aggregate([
+            {$match: {'_id': id}},
+            {$unwind: {path: "$rating", preserveNullAndEmptyArrays: true}},
+            {$unwind: {path: "$categoryTags", preserveNullAndEmptyArrays: true}},
+            {$project: {totalFollowing:{$size :"$following"},totalFollowers:{$size :"$followers"},email:1,
+                phone_number:1, bio:1,photoUrl:1, public_id:1, profession:1, name:1, ranking:1,
+                followers:1, following:1, createdAt: 1, address:1
+            }},
+        ], function (err, data) {
+            if (err) {
+                console.log(err);
+                return res.badRequest("Something unexpected happened");
+            }
+
+        User.populate(data, {
                 'path': 'followers.userId following.userId rating.ratedBy',
                 'select': 'name photoUrl email bio'
             },
@@ -362,6 +441,7 @@ router.get('/:userId', function(req, res) {
 
                 res.success(user);
             });
+        })
     });
 });
 
@@ -546,6 +626,96 @@ function profile(id, callback){
                 return callback(null, info);
             }
         );
+}
+
+function ranking(id, callback){
+    User.findById(id, function (err, user) {
+        if (err) {
+            console.log(err)
+            return callback("Something unexpected happened");
+        }
+        if (!user) {
+            return callback("could not find user with id: " + id);
+        }
+        if (user.rating >= 50000000) {
+            user.ranking = 'ultimate';
+            user.save(function (err, result) {
+                if (err) {
+                    console.log(err);
+                    return callback("Something unexpected happened");
+                }
+                console.log(result);
+                return callback(null, result)
+            })
+        }
+        else if (user.rating <50000000 && user.rating >=5000000) {
+            user.ranking = 'veteran';
+            user.save(function (err, result) {
+                if (err) {
+                    console.log(err);
+                    return callback("Something unexpected happened");
+                }
+                console.log(result);
+                return callback(null, result)
+            })
+        }
+        else if (user.rating < 5000000 && user.rating >=500000) {
+            user.ranking = 'expert';
+            user.save(function (err, result) {
+                if (err) {
+                    console.log(err);
+                    return callback("Something unexpected happened");
+                }
+                console.log(result);
+                return callback(null, result)
+            })
+        }
+        else if (user.rating < 500000 && user.rating >=100000) {
+            user.ranking = 'professional';
+            user.save(function (err, result) {
+                if (err) {
+                    console.log(err);
+                    return callback("Something unexpected happened");
+                }
+                console.log(result);
+                return callback(null, result)
+            })
+        }
+        else if (user.rating < 100000 && user.rating >=10000) {
+            user.ranking = 'proficient';
+            user.save(function (err, result) {
+                if (err) {
+                    console.log(err);
+                    return callback("Something unexpected happened");
+                }
+                console.log(result);
+                return callback(null, result)
+            })
+        }
+        else if (user.rating < 10000 && user.rating >= 1000) {
+            user.ranking = 'amateur';
+            user.save(function (err, result) {
+                if (err) {
+                    console.log(err);
+                    return callback("Something unexpected happened");
+                }
+                console.log(result);
+                return callback(null, result)
+
+            })
+        }
+        else {
+            user.ranking = 'beginner';
+            user.save(function (err, result) {
+                if (err) {
+                    console.log(err);
+                    return badRequest("Something unexpected happened");
+                }
+                console.log(result);
+                return callback(null, result)
+            })
+        }
+    });
 }
 
 module.exports = router;

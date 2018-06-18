@@ -1,15 +1,19 @@
 let mongoose = require("mongoose");
 let Schema = mongoose.Schema;
 
-let userIdField = require('./userId');
-let userIdSchema = new Schema(userIdField, {timestamps: true});
+let storyIdField = require('./storyId');
+let storyIdSchema = new Schema(storyIdField, {timestamps: true});
+
+let answerIdField = require('./answerId');
+let answerIdSchema = new Schema(answerIdField, {timestamps: true});
 
 let fields = {
-    bookMarkedBy: [userIdSchema],
-    title: {
+    _id: {
         type: String,
         required: true
-    }
+    },
+    storyId: [storyIdSchema],
+    answerId: [answerIdSchema],
 };
 
 let Categories = new Schema(fields, {timestamps: true});

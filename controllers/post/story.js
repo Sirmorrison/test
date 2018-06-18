@@ -10,6 +10,7 @@ cloudinary.config(config.cloudinary);
 let Story = require('../../models/story');
 let arrayUtils = require('../../utils/array');
 let validator = require('../../utils/validator');
+let User = require('../../models/user');
 
 
 /*** END POINT FOR GETTING THE COMMENTS ON A STORY OF A USER BY LOGGED IN USERS*/
@@ -88,6 +89,7 @@ router.post('/', function (req, res) {
 
     let story = req.body.story,
         title = req.body.title,
+        userId = req.user.id,
         cate_tags = req.body.category;
 
     let validated = validator.isSentence(res, story )&&
@@ -113,7 +115,7 @@ router.post('/', function (req, res) {
     let data = {
         title: title,
         story: story,
-        postedBy: req.user.id,
+        postedBy: userId,
         category: categoryTags
     };
 
@@ -122,6 +124,15 @@ router.post('/', function (req, res) {
             console.log(err);
             return res.serverError("Something unexpected happened");
         }
+
+        User.update(
+            {"_id": userId},
+            {$inc: {rating: 100}}, function (err) {
+                if (err) {
+                    console.log(err);
+                }
+            }
+        );
 
         let data = {
             postId : post._id,
@@ -132,6 +143,7 @@ router.post('/', function (req, res) {
         };
         res.success(data);
     });
+
 });
 
 /*** END POINT FOR EDITING POST BY A CURRENTLY LOGGED IN USER */

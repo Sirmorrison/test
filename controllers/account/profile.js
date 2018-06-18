@@ -34,37 +34,24 @@ router.get('/categories', function (req, res) {
 router.get('/', function(req, res) {
     let id = req.user.id;
 
-    User.aggregate([
-        {$match: {'_id': id}},
-        {$unwind: {path: "$rating", preserveNullAndEmptyArrays: true}},
-        {$project: {totalFollowing:{$size :"$following"},totalFollowers:{$size :"$followers"},email:1, categoryTags:1,
-            phone_number:1, rating:1, bio:1,photoUrl:1, public_id:1, profession:1, name:1, Rating:{$avg :"$rating.rating"},
-            followers:1, following:1, createdAt: 1, address:1, updatedAt:1, packageType:1
-    }},
-        // {
-        //     $lookup: {
-        //         from: "posts",
-        //         localField: "id",
-        //         foreignField:"postedBy.userId",
-        //         as: "Posts",
-        //     }
-        // },
-        // {
-        //     $lookup: {
-        //         from: "questions",
-        //         localField: "id",
-        //         foreignField: "postedBy.userId",
-        //         as: "Questions"
-        //     }
-        // },
-        //
-        // {$unwind: {path: "$post", preserveNullAndEmptyArrays: true}},
-        // {$unwind: {path: "$comment", preserveNullAndEmptyArrays: true}}
-    ], function (err, data) {
+    ranking(id, function (err, user) {
         if (err) {
             console.log(err);
             return res.badRequest("Something unexpected happened");
         }
+        console.log(user);
+        User.aggregate([
+            {$match: {'_id': id}},
+            {$unwind: {path: "$rating", preserveNullAndEmptyArrays: true}},
+            {$project: {totalFollowing:{$size :"$following"},totalFollowers:{$size :"$followers"},email:1, categoryTags:1,
+                phone_number:1, bio:1,photoUrl:1, public_id:1, profession:1, name:1, ranking:1,
+                followers:1, following:1, createdAt: 1, address:1, updatedAt:1, packageType:1
+        }},
+        ], function (err, data) {
+            if (err) {
+                console.log(err);
+                return res.badRequest("Something unexpected happened");
+            }
 
         User.populate(data,{
                 'path': 'followers.userId following.userId rating.ratedBy categoryTags.categoryId',
@@ -83,6 +70,7 @@ router.get('/', function(req, res) {
 
                 res.success(user);
             });
+        })
     });
 });
 
@@ -546,6 +534,96 @@ function profile(id, callback){
             return callback(null, info);
         }
     );
+}
+
+function ranking(id, callback){
+    User.findById(id, function (err, user) {
+        if (err) {
+            console.log(err);
+            return callback("Something unexpected happened");
+        }
+        if (!user) {
+            return callback("could not find user with id: " + id);
+        }
+        if (user.rating >= 50000000) {
+            user.ranking = 'ultimate';
+            user.save(function (err, result) {
+                if (err) {
+                    console.log(err);
+                    return callback("Something unexpected happened");
+                }
+                console.log(result);
+                return callback(null, result)
+            })
+        }
+        else if (user.rating <50000000 && user.rating >=5000000) {
+            user.ranking = 'veteran';
+            user.save(function (err, result) {
+                if (err) {
+                    console.log(err);
+                    return callback("Something unexpected happened");
+                }
+                console.log(result);
+                return callback(null, result)
+            })
+        }
+        else if (user.rating < 5000000 && user.rating >=500000) {
+            user.ranking = 'expert';
+            user.save(function (err, result) {
+                if (err) {
+                    console.log(err);
+                    return callback("Something unexpected happened");
+                }
+                console.log(result);
+                return callback(null, result)
+            })
+        }
+        else if (user.rating < 500000 && user.rating >=100000) {
+            user.ranking = 'professional';
+            user.save(function (err, result) {
+                if (err) {
+                    console.log(err);
+                    return callback("Something unexpected happened");
+                }
+                console.log(result);
+                return callback(null, result)
+            })
+        }
+        else if (user.rating < 100000 && user.rating >=10000) {
+            user.ranking = 'proficient';
+            user.save(function (err, result) {
+                if (err) {
+                    console.log(err);
+                    return callback("Something unexpected happened");
+                }
+                console.log(result);
+                return callback(null, result)
+            })
+        }
+        else if (user.rating < 10000 && user.rating >= 1000) {
+            user.ranking = 'amateur';
+            user.save(function (err, result) {
+                if (err) {
+                    console.log(err);
+                    return callback("Something unexpected happened");
+                }
+                console.log(result);
+                return callback(null, result)
+
+            })
+        }
+        else {
+            user.ranking = 'beginner';
+            user.save(function (err, result) {
+                if (err) {
+                    console.log(err);
+                    return badRequest("Something unexpected happened");
+                }
+                console.log(result);
+                return callback(null, result)
+            })
+        }
+    });
 }
 
 function cloudUpload(path, callback) {

@@ -1,7 +1,6 @@
 # do not upload config files to github
 config.js
 README.md
-tsconfig.json
 service_account.json
 .idea/
 *.ppk

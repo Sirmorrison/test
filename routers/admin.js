@@ -12,7 +12,7 @@ let category = require('../controllers/admin/category');
 router.use('/category',protector.protect, category);
 
 //all profile endpoints
-// let biz_profile = require('../controllers/business/biz_profile');
-// router.use('/biz_profile',protector.protect, biz_profile);
+let report = require('../controllers/admin/report');
+router.use('/report',protector.protect, report);
 
 module.exports = router;

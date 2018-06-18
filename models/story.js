@@ -7,6 +7,9 @@ let commentSchema = new Schema(commentField ,{timestamps: true});
 let userIdField = require('./userId');
 let userIdSchema = new Schema(userIdField ,{timestamps: true});
 
+let ratingField = require('./ratings');
+let ratingSchema = new Schema(ratingField ,{timestamps: true});
+
 let catIdField = require('./cate_tags');
 let categorySchema = new Schema(catIdField ,{timestamps: true});
 
@@ -23,6 +26,7 @@ let storyFields = {
     likes: [userIdSchema],
     dislikes: [userIdSchema],
     views: [userIdSchema],
+    rating: [ratingSchema],
     comments: [commentSchema],
     bookmarks:[userIdSchema],
     postedBy: {

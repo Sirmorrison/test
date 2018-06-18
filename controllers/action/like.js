@@ -3,9 +3,10 @@ let router = express.Router();
 
 let Story = require('../../models/story');
 let Question = require('../../models/question');
+let User = require('../../models/user');
 
 /*** END POINT FOR GETTING THE DISLIKES ON A STORIES ANSWER OF A USER BY LOGGED IN USERS*/
-router.get('/:storyId/:commentId', function (req, res) {
+router.get('/:storyId/c/:commentId', function (req, res) {
 
     let storyId = req.params.storyId,
         commentId = req.params.commentId;
@@ -30,7 +31,7 @@ router.get('/:storyId/:commentId', function (req, res) {
 });
 
 /*** END POINT FOR GETTING THE DISLIKES ON A QUESTIONS ANSWER OF A USER BY LOGGED IN USERS*/
-router.get('/:questionId/:answerId', function (req, res) {
+router.get('/:questionId/q/:answerId', function (req, res) {
 
     let questionId = req.params.questionId,
         answerId = req.params.answerId;
@@ -88,30 +89,53 @@ router.post('/story/:postId', function (req, res) {
         if (err) {
             return res.badRequest("Something unexpected happened");
         }
-        console.log(f)
         if(f.nModified === 0){
             return res.success('you have either liked or disliked this post')
         }
+
+        User.update(
+            {"_id": userId},
+            {$inc: {rating: 10}}, function (err, f) {
+                if (err) {
+                    console.log(err);
+                }
+            }
+        );
+        postedBy(postId, function (err) {});
         res.success({liked: true});
     });
 });
 
 /*** END POINT FOR DELETING STORY OF A POST BY CURRENTLY LOGGED IN USER */
 router.delete('/story/:postId', function (req, res) {
+    let userId = req.user.id;
     let updateOperation = {
         '$pull': {
             'likes': {
-                'userId': req.user.id
+                "$elemMatch": {
+                    "userId": userId
+                }
             }
         }
     };
 
-    Story.update({_id: req.params.postId}, updateOperation, function (err) {
+    Story.update({_id: req.params.postId}, updateOperation, function (err, g) {
         if (err) {
             console.log(err);
             return res.badRequest("Some error occurred");
         }
 
+        User.update(
+            {"_id": userId},
+            {$inc: {rating: -100}}, function (err, f) {
+                if (err) {
+                    console.log(err);
+                }
+
+                console.log(f);
+            }
+        );
+        console.log('hi', g);
         res.success({liked: false});
     });
 });
@@ -257,6 +281,15 @@ router.post('/question/:questionId/answer/:answerId', function (req, res) {
         if(f.nModified === 0){
             return res.success('you have either liked or disliked this post')
         }
+        User.update(
+            {"_id": userId},
+            {$inc: {rating: 10}}, function (err, f) {
+                if (err) {
+                    console.log(err);
+                }
+            }
+        );
+        answeredBy(questionId, answerId);
         res.success({liked: true});
     });
 });
@@ -306,5 +339,49 @@ router.delete('/question/:questionId/answer/:answerId', function (req, res) {
         res.success({liked: false});
     });
 });
+
+function postedBy(postId, callback) {
+    Story.findById(postId, function (err, data) {
+        if (err) {
+            console.log(err);
+            return callback("Something unexpected happened");
+        }
+        if (!data) {
+            return callback("not found");
+        }
+
+        let userId = data.postedBy;
+        User.update(
+            {"_id": userId},
+            {$inc: {rating: 100}}, function (err, f) {
+                if (err) {
+                    console.log(err);
+                    return callback("Something unexpected happened");
+                }
+            }
+        );
+    });
+}
+
+function answeredBy(questionId, answerId, callback) {
+    Question.findById(questionId, function (err, data) {
+        if (err) {
+            console.log(err);
+            return callback("Something unexpected happened");
+        }
+
+        let userId = data.answers.id(answerId).answeredBy;
+        console.log(userId);
+        User.update(
+            {"_id": userId},
+            {$inc: {rating: 100}}, function (err, f) {
+                if (err) {
+                    console.log(err);
+                    return callback("Something unexpected happened");
+                }
+            }
+        );
+    });
+}
 
 module.exports = router;

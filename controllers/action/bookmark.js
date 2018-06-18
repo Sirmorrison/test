@@ -3,6 +3,7 @@ let router = express.Router();
 
 let Question = require('../../models/question');
 let Story = require('../../models/story');
+let Bookmark = require('../../models/bookmark');
 
 /*** END POINT FOR GETTING BOOKMARKED STORY OF CURRENTLY LOGGED IN USER */
 router.get('/story', function (req, res) {
@@ -82,9 +83,9 @@ router.get('/answer', function (req, res) {
 router.post('/:storyId', function (req, res) {
 
     let userId = req.user.id;
-    let storyId = req.params.storyId;
+    let storyId = req.body.storyId;
 
-    User.update({
+    Bookmark.update({
         "_id": userId,
         "bookmarks": {
             "$not": {
@@ -113,7 +114,7 @@ router.post('/:storyId', function (req, res) {
                 }
             };
 
-            User.update({_id: userId}, updateOperation, function (err) {
+            Bookmark.update({_id: userId}, updateOperation, function (err) {
                 if (err) {
                     console.log(err);
                     return res.badRequest("Some error occurred");

@@ -1,6 +1,5 @@
 let express = require('express');
 let router = express.Router();
-let moment = require('moment');
 
 const config = require('../../config');
 let FirebaseAuth = require('firebaseauth');

@@ -3,6 +3,7 @@ let router = express.Router();
 
 let Question = require('../../models/question');
 let validator = require('../../utils/validator');
+let User = require('../../models/user');
 
 
 /*** END POINT FOR GETTING AN ANSWERS TO A QUESTION OF A USER BY LOGGED IN USERS*/
@@ -54,6 +55,7 @@ router.get('/:questionId/:answerId', function (req, res) {
 /*** END POINT FOR COMMENTING ON A POST OF A USER BY ANOTHER CURRENTLY LOGGED IN USER */
 router.post('/:questionId', function (req, res) {
     let answer = req.body.answer,
+        userId = req.user.id,
         questionId = req.params.questionId;
 
     let validated = validator.isSentence(res, answer);
@@ -61,7 +63,7 @@ router.post('/:questionId', function (req, res) {
 
     let values ={
         answer: answer,
-        commentedBy: req.user.id
+        answeredBy: userId
     };
 
     Question.findOne({_id: questionId},function (err, question) {
@@ -69,6 +71,7 @@ router.post('/:questionId', function (req, res) {
             console.log(err);
             return res.serverError("Something unexpected happened");
         }
+
         question.answers.push(values);
         question.save(function (err, result) {
             if (err) {
@@ -80,12 +83,20 @@ router.post('/:questionId', function (req, res) {
                 answerId: result.answers[result.answers.length - 1]._id,
                 answers: result.answers[result.answers.length - 1].answers
             };
+            User.update(
+                {"_id": userId},
+                {$inc: {rating: 100}}, function (err, f) {
+                    if (err) {
+                        console.log(err);
+                    }
+                }
+            );
             res.success(data);
         });
     });
 });
 
-/*** END POINT FOR EDITING COMMENT ON A POST*/
+/*** END POINT FOR EDITING ANSWER ON A QUESTION*/
 router.put('/:questionId/:answerId', function (req,res) {
 
     let questionId = req.params.questionId,
@@ -115,7 +126,7 @@ router.put('/:questionId/:answerId', function (req,res) {
     )
 });
 
-/*** END POINT FOR DELETING COMMENT ON A POST*/
+/*** END POINT FOR DELETING ANSWER ON A QUESTION*/
 router.delete('/:questionId/:answerId', function (req, res) {
 
     let questionId = req.params.questionId,
@@ -126,7 +137,7 @@ router.delete('/:questionId/:answerId', function (req, res) {
         if (err) {
             return res.serverError("Something unexpected happened");
         }
-        if(question.answers.id(answerId).answeredBy !== id ){
+        if(question.answers.id(answerId).answeredBy !== id){
             let err = new Error('you re not authorized');
             console.log(err)
             return res.notAllowed(err);

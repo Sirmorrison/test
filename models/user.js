@@ -4,9 +4,6 @@ let Schema = mongoose.Schema;
 let userIdField = require('./userId');
 let userIdSchema = new Schema(userIdField,{timestamps: true});
 
-let ratingFields = require('./ratings');
-let ratingSchema = new Schema(ratingFields, {timestamps: true});
-
 let catIdField = require('./cate_tags');
 let categorySchema = new Schema(catIdField,{timestamps: true});
 
@@ -37,6 +34,14 @@ let fields = {
         default: 'free',
         required: true
     },
+    rating: {
+        type: Number,
+        default: 50
+    },
+    ranking: {
+        type: String,
+        default: 'beginner'
+    },
     packageBalance: Number,
     address: String,
     bio: String,
@@ -44,6 +49,8 @@ let fields = {
     public_id: String,
     profession: String,
     cvUrl: String,
+    account_no: String,
+    bank_name: String,
     categoryTags:[categorySchema],
     followers:[userIdSchema],
     following:[userIdSchema],
