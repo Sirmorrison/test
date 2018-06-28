@@ -16,17 +16,7 @@ router.post('/', function(req, res){
     let email = req.body.email,
         password = req.body.password,
         name = req.body.name,
-        admin = req.body.admin,
         phone_number = req.body.phone_number;
-
-    if (admin === 0 || admin === '0' || admin === 'f' || admin === 'false' || admin === 'no')
-        admin = false;
-    else if (admin === 1 || admin === '1' || admin === 't' || admin === 'true' || admin === 'yes')
-        admin = true;
-
-    if (admin && typeof(admin) !== 'boolean'){
-        return res.badRequest('Admin flag is required');
-    }
 
     //chain validation checks, first one to fail will cause the code to break instantly
     let validated = validator.isValidEmail(res, email) &&
@@ -59,8 +49,7 @@ router.post('/', function(req, res){
                     _id: firebaseResponse.user.id,
                     name: firebaseResponse.user.displayName,
                     email: firebaseResponse.user.email,
-                    phone_number: phone_number,
-                    admin: admin
+                    phone_number: phone_number
                 };
                 User.create(info, function (err, user) {
                     if (err) {

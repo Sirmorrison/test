@@ -7,6 +7,7 @@ const firebase = new FirebaseAuth(config.FIREBASE_API_KEY);
 
 const validate = require('../../utils/validator');
 const User = require('../../models/user');
+const Admin = require('../../models/admin_user');
 
 /*** END POINT FOR LOGIN WITH EMAIL */
 router.post('/', function(req, res){
@@ -33,18 +34,37 @@ router.post('/', function(req, res){
                 console.log(err);
                 return res.badRequest("Something unexpected happened");
             }
-            if (!user){
-                return res.badRequest("no user found with this with this login information");
+            if (user) {
+                console.log('im here because i find user');
+
+                let userInfo = {
+                    name: user.name,
+                    token: resp.token,
+                    refreshToken: resp.refreshToken,
+                    expiryMilliseconds: resp.expiryMilliseconds
+                };
+
+                return res.success(userInfo);
             }
 
-            let userInfo = {
-                name: user.name,
-                token: resp.token,
-                refreshToken: resp.refreshToken,
-                expiryMilliseconds: resp.expiryMilliseconds
-            };
+            Admin.findById(resp.user.id, function (err, user) {
+                if (err) {
+                    console.log(err);
+                    return res.badRequest("Something unexpected happened");
+                }
+                if (!user) {
+                    return res.badRequest("no user found with this with this login information");
+                }
 
-            res.success(userInfo);
+                let userInfo = {
+                    name: user.name,
+                    token: resp.token,
+                    refreshToken: resp.refreshToken,
+                    expiryMilliseconds: resp.expiryMilliseconds
+                };
+
+                return res.success(userInfo);
+            });
         });
     });
 });

@@ -1,4 +1,7 @@
 let validator = require('validator');
+let User = require('../models/user');
+let Admin = require('../models/admin_user');
+let Category = require('../models/categories');
 
 exports.isValidEmail = function(res, email, optional){
 	if (!optional && !email) {
@@ -16,6 +19,28 @@ exports.isValidPhoneNumber = function(res, phoneNumber, optional){
     }
     if (!validator.isMobilePhone(phoneNumber, 'any')){
         return res.badRequest('Phone Number is not valid')
+    }
+    if(phoneNumber) {
+        User.findOne({phone_number: phoneNumber}, function (err, result) {
+            if (err) {
+                console.log(err);
+                return res.badRequest("Something unexpected happened");
+            }
+            if (result) {
+                return res.badRequest("A user already exist with this phone number: " + phoneNumber);
+            }
+            Admin.findOne({phone_number: phoneNumber}, function (err, result) {
+                if (err) {
+                    console.log(err);
+                    return res.badRequest("Something unexpected happened");
+                }
+                if (result) {
+                    return res.badRequest("A user already exist with this phone number: " + phoneNumber);
+                }
+
+                return true;
+            })
+        });
     }
 
     return true;
@@ -54,9 +79,20 @@ exports.isWord = function(res, word, optional){
     return true;
 };
 
+exports.isValidCateId = function(res, cateId, optional){
+    if (!optional && !cateId) {
+        return res.badRequest('A required admin category type is missing');
+    }
+    if (typeof(cateId) !== 'string' ||  cateId.trim().length <= 0){
+        return res.badRequest('admin category must be a string and cannot be empty');
+    }
+
+    return true;
+};
+
 exports.isCategory = function(res, cate_tags, optional){
     if (!optional && !cate_tags) {
-        return res.badRequest('A category is field is required');
+        return res.badRequest('category field is required');
     }
     if (typeof(cate_tags) && !Array.isArray(cate_tags)){
         return res.badRequest('Tags should be a json array of user Ids (string)')
@@ -127,13 +163,13 @@ exports.isUsername = function(res, username, optional){
     return true;
 };
 
-exports.isFile = function(res, file, optional){
-    if (!optional && !file) {
+exports.isAdminRating = function(res, rating, optional){
+    if (!optional && !rating) {
         return res.badRequest('File to be uploaded is required');
     }
 
-    if (typeof(file.path) !== 'string' || file.path.trim().length <= 0 ){
-        return res.badRequest('File to be uploaded is required and must be string')
+    if (typeof(rating) !== 'number' || (rating < 0 || rating > 100000)){
+        return res.badRequest('admin rating must be number and not greater 100000')
     }
 
     return true;

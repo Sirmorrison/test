@@ -4,6 +4,9 @@ let Schema = mongoose.Schema;
 let userIdField = require('./userId');
 let userIdSchema = new Schema(userIdField, {timestamps: true});
 
+let ratingField = require('./ratings');
+let ratingSchema = new Schema(ratingField, {timestamps: true});
+
 module.exports = {
     answer: {
         type: String,
@@ -14,8 +17,8 @@ module.exports = {
         ref: 'User',
         required: true
     },
+    rating: [ratingSchema],
     likes: [userIdSchema],
     dislikes: [userIdSchema],
-    views: [userIdSchema],
-    bookmarks:[userIdSchema],
+    views: Number,
 };

@@ -11,16 +11,12 @@ let fields = {
         type: String,
         required: true
     },
-    summary: {
-        type: String,
-        required: true
-    },
     description: {
         type: String,
         required: true
     }
 };
 
-let Categories = new Schema(fields, {timestamps: true});
-Categories.index({title: 1});
-module.exports = mongoose.model('Categories', Categories);
+let Admin_categories = new Schema(fields, {timestamps: true});
+Admin_categories.index({title: 1});
+module.exports = mongoose.model('Admin_categories', Admin_categories);

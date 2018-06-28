@@ -13,125 +13,86 @@ let validator = require('../../utils/validator');
 let User = require('../../models/user');
 
 
-// /*** END POINT A POST BY ITS ID BY CURRENTLY LOGGED IN USERS */
-// router.get('/:questionId', function (req, res) {
-//
-//     let questionId = req.params.questionId,
-//         userId = req.user.id;
-//
-//     Question.findOne({_id: questionId})
-//         .populate({
-//             path: 'postedBy',
-//             select: 'name photo'
-//         })
-//         .sort({date: -1})
-//         .exec(function (err, post) {
-//             console.log(post)
-//
-//             if (err) {
-//                 return res.serverError("Something unexpected happened");
-//             }
-//             let info = {
-//                 question: post.question,
-//                 postedOn: post.createdAt,
-//                 postedBy: post.postedBy,
-//                 nviews: post.views.length,
-//                 answers: post.answers.length
-//             };
-//             Question.update({
-//                 "_id": questionId,
-//                 "views": {
-//                     "$not": {
-//                         "$elemMatch": {
-//                             "userId": userId
-//                         }
-//                     }
-//                 }
-//             }, {
-//                 $addToSet: {
-//                     views: {
-//                         "userId": userId
-//                     }
-//                 }
-//             }, function (err) {
-//                 if(err){
-//                     console.log(err)
-//                 }
-//                 res.success(info);
-//             });
-//         }
-//     );
-// });
-
 /*** END POINT FOR GETTING THE QUESTION AND ANSWERS INFORMATION USER BY LOGGED IN USERS*/
 router.get('/:questionId', function (req, res) {
     let questionId = req.params.questionId,
-        userId = req.user.id,
         id = mongoose.Types.ObjectId(questionId);
 
-    Question.update({
-        "_id": questionId,
-        "views": {
-            "$not": {
-                "$elemMatch": {
-                    "userId": userId
-                }
-            }
-        }
-    }, {
-        $addToSet: {
-            views: {
-                "userId": userId
-            }
-        }
-    }, function (err) {
-        if(err){
-            console.log(err)
-        }
-
-        Question.aggregate([
-            {$match: {"_id" : id}},
-            {$project: {answers: {
-                $map: {
-                    input: '$answers',
-                    as: "element",
-                    in: {
-                        answerId: "$$element._id",
-                        answeredOn: '$$element.createdAt',
-                        answeredBy: '$$element.answeredBy',
-                        views: { $size: "$$element.views" },
-                        upVotes: { $size: "$$element.likes" },
-                        downVotes: { $size: "$$element.dislikes" }
-                    }
-                }
-            }, question:1, views: { $size: "$views" }, postedBy:1}},
-        ], function (err, data) {
-
+    // Question.update({
+    //     "_id": questionId,
+    //     "views": {
+    //         "$not": {
+    //             "$elemMatch": {
+    //                 "userId": userId
+    //             }
+    //         }
+    //     }
+    // }, {
+    //     $addToSet: {
+    //         views: {
+    //             "userId": userId
+    //         }
+    //     }
+    // }
+    Question.update(
+        {"_id": questionId},
+        {$inc: {views: 1}}, function (err) {
             if (err) {
                 console.log(err);
-                return res.badRequest("Something unexpected happened");
+                return callback("Something unexpected happened");
             }
 
-            Question.populate(data,{
-                    'path': 'postedBy answers.answeredBy',
-                    'select': 'name email photoUrl public_id'
+            Question.aggregate([
+                {$match: {"_id": id}},
+                {
+                    $project: {
+                        answers: {
+                            $map: {
+                                input: '$answers',
+                                as: "element",
+                                in: {
+                                    answerId: "$$element._id",
+                                    answeredOn: '$$element.createdAt',
+                                    answeredBy: '$$element.answeredBy',
+                                    answers: '$$element.answer',
+                                    views: "$$element.views",
+                                    upVotes: {$size: "$$element.likes"},
+                                    rating: {$avg: "$$element.rating"},
+                                    downVotes: {$size: "$$element.dislikes"}
+                                }
+                            }
+                        },
+                        question: 1,
+                        postedBy: 1
+                    }
                 },
+            ], function (err, data) {
 
-                function (err, post) {
-
-                    if (err) {
-                        console.log(err);
-                        return res.badRequest("Something unexpected happened");
-                    }
-                    if (!post) {
-                        return res.success([]);
-                    }
-
-                    res.success(post);
+                if (err) {
+                    console.log(err);
+                    return res.badRequest("Something unexpected happened");
                 }
-            );
+                if (!data) {
+                    return res.success([]);
+                }
+
+                Question.populate(data, {
+                        'path': 'postedBy answers.answeredBy',
+                        'select': 'name email photoUrl ranking'
+                    },
+
+                    function (err, post) {
+
+                        if (err) {
+                            console.log(err);
+                            return res.badRequest("Something unexpected happened");
+                        }
+
+                        res.success(post);
+                    }
+                );
+            });
         });
-    });
 });
 
 /*** END POINT FOR POST CREATION CONTAINING FILE TO BE UPLOADED BY A CURRENTLY LOGGED IN USER */
@@ -268,6 +229,9 @@ router.delete('/:questionId', function (req, res) {
         if (err) {
             console.log(err);
             return res.badRequest("Some error occurred");
+        }
+        if(!result){
+            return res.badRequest("no post found with that id")
         }
 
         res.success('question successfully deleted')

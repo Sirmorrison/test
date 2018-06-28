@@ -24,16 +24,6 @@ let fields = {
         type: String,
         unique: true
     },
-    admin: {
-        type: Boolean,
-        default: false,
-        required: true
-    },
-    packageType: {
-        type: String,
-        default: 'free',
-        required: true
-    },
     rating: {
         type: Number,
         default: 50
@@ -42,7 +32,19 @@ let fields = {
         type: String,
         default: 'beginner'
     },
-    packageBalance: Number,
+    packageType: {
+        type: String,
+        default: 'free',
+        required: true
+    },
+    account_status: {
+        type: String,
+        default: 'active',
+        required: true
+    },
+    sub_date: String,
+    sub_expiry: String,
+    walletBalance: Number,
     address: String,
     bio: String,
     photoUrl: String,
@@ -56,5 +58,7 @@ let fields = {
     following:[userIdSchema],
 };
 
+
 let User = new Schema(fields, { timestamps: true });
+    User.index({name: 'text',phone_number: 1, profession: 'text'});
 module.exports = mongoose.model('User', User);

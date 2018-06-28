@@ -1,5 +1,6 @@
 let express = require('express');
 let router = express.Router();
+let mongoose = require("mongoose");
 
 let Question = require('../../models/question');
 let validator = require('../../utils/validator');
@@ -9,46 +10,56 @@ let User = require('../../models/user');
 /*** END POINT FOR GETTING AN ANSWERS TO A QUESTION OF A USER BY LOGGED IN USERS*/
 router.get('/:questionId/:answerId', function (req, res) {
     let questionId = req.params.questionId,
-        userId = req.user.id,
         answerId = req.params.answerId;
+    let id = mongoose.Types.ObjectId(answerId);
 
     Question.update({
-        "_id": questionId,
-        'answers._id': answerId,
-        "answers.views": {
-            "$not": {
-                "$elemMatch": {
-                    "userId": userId
-                }
+            "_id": questionId,
+            'answers._id': id},
+        {$inc: {'answers.$.views': 1}}, function (err) {
+            if (err) {
+                console.log(err);
             }
-        }
-    }, {
-        $addToSet: {
-            'answers.$.views': {
-                "userId": userId
-            }
-        }
-    },function (err) {
-        if (err) {
-            console.log(err);
-        }
-        Question.findOne({_id: questionId})
-            .populate({
-                path: 'views.userId',
-                select: 'name photoUrl public_id'
-            })
-            .sort({date: -1})
-            .exec(function (err, post) {
-                if (err) {
-                    return res.serverError("Something unexpected happened");
-                }
-                if (!post) {
-                    return res.success('no answer found with the id provided')
-                }
 
-                res.success(post.answers.id(answerId));
-            }
-        );
+            Question.aggregate([
+                {$match: {"answers._id" : id}},
+                {$project:
+                    {answers: {
+                    $map: {
+                        input: '$answers',
+                        as: "element",
+                        in: {
+                            answerId: "$$element._id",
+                            answer: "$$element.answer",
+                            answeredOn: '$$element.createdAt',
+                            answeredBy: '$$element.answeredBy',
+                            views: "$$element.views" ,
+                            upVotes: { $size: "$$element.likes" },
+                            rating: { $avg: "$$element.rating" },
+                            downVotes: { $size: "$$element.dislikes" }
+                        }
+                    }
+                }
+            , question:1, views: 1, postedBy: 1}} ], function (err, data) {
+
+                if (err) {
+                        return res.serverError("Something unexpected happened");
+                    }
+                Question.populate(data,{
+                        'path': 'postedBy answers.answeredBy',
+                        'select': 'name photoUrl'
+                    },
+                    function (err, data) {
+
+                        if (err) {
+                            console.log(err);
+                            return res.badRequest("Something unexpected happened");
+                        }
+
+                        res.success(data);
+                    }
+                );
+        })
     })
 });
 

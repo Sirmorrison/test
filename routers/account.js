@@ -22,9 +22,9 @@ router.use('/recovery', recovery);
 
 //all verification endpoints
 let verification = require('../controllers/account/verification');
-router.use('/verification', verification);
+router.use('/verification',protector.protect, verification);
 
 let token = require('../controllers/account/token');
-router.use('/token', token);
+router.use('/token',protector.protect, token);
 
 module.exports = router;

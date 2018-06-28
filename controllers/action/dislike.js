@@ -7,7 +7,7 @@ let User = require('../../models/user');
 
 //GET DISLIKES
 /*** END POINT FOR GETTING THE DISLIKES ON A STORIES ANSWER OF A USER BY LOGGED IN USERS*/
-router.get('/:storyId/:commentId', function (req, res) {
+router.get('/story/:storyId/:commentId', function (req, res) {
 
     let storyId = req.params.storyId,
         commentId = req.params.commentId;
@@ -15,7 +15,33 @@ router.get('/:storyId/:commentId', function (req, res) {
     Story.findOne({_id: storyId})
         .populate({
             path: 'comments.dislikes.userId',
-            select: 'name photoUrl public_id'
+            select: 'name photoUrl ranking'
+        })
+        .sort({date: -1})
+        .exec(function (err, post) {
+                console.log(post);
+                if (err) {
+                    return res.serverError("Something unexpected happened");
+                }
+                if (!post){
+                    return res.success('no post found with the id provided')
+                }
+
+                res.success(post.comments.id(commentId).dislikes);
+            }
+        );
+});
+
+/*** END POINT FOR GETTING THE DISLIKES ON A STORIES ANSWER OF A USER BY LOGGED IN USERS*/
+router.get('/story/:storyId/:commentId', function (req, res) {
+
+    let storyId = req.params.storyId,
+        commentId = req.params.commentId;
+
+    Story.findOne({_id: storyId})
+        .populate({
+            path: 'comments.dislikes.userId',
+            select: 'name photoUrl ranking'
         })
         .sort({date: -1})
         .exec(function (err, post) {
@@ -33,7 +59,7 @@ router.get('/:storyId/:commentId', function (req, res) {
 });
 
 /*** END POINT FOR GETTING THE DISLIKES ON A QUESTIONS ANSWER OF A USER BY LOGGED IN USERS*/
-router.get('/:questionId/:answerId', function (req, res) {
+router.get('/question/:questionId/:answerId', function (req, res) {
 
     let questionId = req.params.questionId,
         answerId = req.params.answerId;
@@ -41,7 +67,7 @@ router.get('/:questionId/:answerId', function (req, res) {
     Question.findOne({_id: questionId})
         .populate({
             path: 'answers.dislikes.userId',
-            select: 'name photoUrl public_id'
+            select: 'name photoUrl ranking'
         })
         .sort({date: -1})
         .exec(function (err, post) {
@@ -149,8 +175,9 @@ router.post('/question/:postId', function (req, res) {
     });
 });
 
+//COMMENT DISLIKE
 /*** END POINT FOR LIKING A COMMENT BY CURRENTLY LOGGED IN USER */
-router.post('/story/:storyId/comment/:commentId', function (req, res) {
+router.post('/story/:storyId/:commentId', function (req, res) {
 
     let userId = req.user.id;
     let storyId = req.params.storyId;
@@ -192,7 +219,7 @@ router.post('/story/:storyId/comment/:commentId', function (req, res) {
 });
 
 /*** END POINT FOR LIKING AN ANSWER  BY CURRENTLY LOGGED IN USER */
-router.post('/question/:questionId/answer/:answerId', function (req, res) {
+router.post('/question/:questionId/:answerId', function (req, res) {
 
     let userId = req.user.id;
     let questionId = req.params.questionId;
@@ -285,7 +312,7 @@ router.delete('/question/:postId', function (req, res) {
 });
 
 /*** END POINT FOR DELETING ANSWER LIKE OF A POST BY CURRENTLY LOGGED IN USER */
-router.delete('/question/:questionId/answer/:answerId', function (req, res) {
+router.delete('/question/:questionId/:answerId', function (req, res) {
     let userId = req.user.id;
     let questionId = req.params.questionId;
     let answerId = req.params.answerId;
@@ -308,7 +335,7 @@ router.delete('/question/:questionId/answer/:answerId', function (req, res) {
 });
 
 /*** END POINT FOR DELETING COMMENT LIKE OF A POST BY CURRENTLY LOGGED IN USER */
-router.delete('/story/:storyId/comment/:commentId', function (req, res) {
+router.delete('/story/:questionId/:answerId', function (req, res) {
     let userId = req.user.id;
     let storyId = req.params.storyId;
     let commentId = req.params.commentId;

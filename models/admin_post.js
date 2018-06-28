@@ -7,37 +7,31 @@ let commentSchema = new Schema(commentField ,{timestamps: true});
 let userIdField = require('./userId');
 let userIdSchema = new Schema(userIdField ,{timestamps: true});
 
-let ratingField = require('./ratings');
-let ratingSchema = new Schema(ratingField ,{timestamps: true});
-
 let catIdField = require('./cate_tags');
 let categorySchema = new Schema(catIdField ,{timestamps: true});
 
 let storyFields = {
-    story: {
+    message: {
         type:String,
         required: true
     },
-    title: {
+    postedBy: {
         type:String,
+        default: 'Ask Oleum',
         required: true
+    },
+    posterId: {
+        type: mongoose.Schema.Types.String,
+        ref: 'Admin_user',
+        // required:true
     },
     category:[categorySchema],
     likes: [userIdSchema],
     dislikes: [userIdSchema],
     views: Number,
-    mediaUrl: String,
-    mediaType: String,
-    public_id: String,
-    rating: [ratingSchema],
     comments: [commentSchema],
-    postedBy: {
-        type: mongoose.Schema.Types.String,
-        ref: 'User',
-        required:true
-    },
 };
 
-let Story = new Schema(storyFields, {timestamps: true});
-    Story.index({title: 'text', story: 'text', 'comments.comments': 'text'});
-module.exports = mongoose.model('Story', Story);
+let Admin_story = new Schema(storyFields, {timestamps: true});
+//Story.index({title: 'text', story: 'text', 'comments.comments': 'text'});
+module.exports = mongoose.model('Admin_story', Admin_story);

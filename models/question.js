@@ -4,8 +4,8 @@ let Schema = mongoose.Schema;
 let answerField = require('./answers');
 let answerSchema = new Schema(answerField,{timestamps: true});
 
-let userIdField = require('./userId');
-let userIdSchema = new Schema(userIdField,{timestamps: true});
+// let userIdField = require('./userId');
+// let userIdSchema = new Schema(userIdField,{timestamps: true});
 
 let catIdField = require('./cate_tags');
 let categorySchema = new Schema(catIdField,{timestamps: true});
@@ -16,7 +16,7 @@ let questionFields = {
         required: true
     },
     category:[categorySchema],
-    views: [userIdSchema],
+    views: Number,
     answers: [answerSchema],
     postedBy: {
         type: mongoose.Schema.Types.String,
@@ -26,4 +26,5 @@ let questionFields = {
 };
 
 let Question = new Schema(questionFields, {timestamps: true});
+Question.index({question: 'text', 'answers.answer': 'text'});
 module.exports = mongoose.model('Question', Question);

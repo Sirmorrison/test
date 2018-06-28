@@ -30,7 +30,7 @@ router.get('/', function (req, res) {
                     return res.serverError("Something unexpected happened");
                 }
                 if (!report) {
-                    return res.badRequest([]);
+                    return res.success([]);
                 }
 
                 let info = {
@@ -48,7 +48,6 @@ router.get('/', function (req, res) {
 router.get('/:reportedId', function (req, res) {
     let userId = req.user.id;
     let id = req.params.reportedId;
-
     userVerify(userId, function (err) {
         if (err) {
             console.log(err);

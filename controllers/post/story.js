@@ -11,33 +11,20 @@ let Story = require('../../models/story');
 let arrayUtils = require('../../utils/array');
 let validator = require('../../utils/validator');
 let User = require('../../models/user');
+let Category = require('../../models/categories');
 
 
 /*** END POINT FOR GETTING THE COMMENTS ON A STORY OF A USER BY LOGGED IN USERS*/
 router.get('/:storyId', function (req, res) {
     let storyId = req.params.storyId,
-        userId = req.user.id,
         id = mongoose.Types.ObjectId(storyId);
 
-    Story.update({
-        "_id": storyId,
-        "views": {
-            "$not": {
-                "$elemMatch": {
-                    "userId": userId
-                }
+    Story.update(
+        {"_id": storyId},
+        {$inc: {views: 1}}, function (err) {
+            if(err){
+                console.log(err)
             }
-        }
-    }, {
-        $addToSet: {
-            views: {
-                "userId": userId
-            }
-        }
-    }, function (err) {
-        if(err){
-            console.log(err)
-        }
 
         Story.aggregate([
         {$match: {"_id" : id}},
@@ -54,7 +41,7 @@ router.get('/:storyId', function (req, res) {
                     dislikes: { $size: "$$element.dislikes" }
                 }
             }
-        }, story:1, postedBy:1, views: { $size: "$views" }}},
+        }, story:1, postedBy:1, views: 1}},
     ], function (err, data) {
 
             if (err) {
@@ -102,48 +89,78 @@ router.post('/', function (req, res) {
     //remove duplicates before proceeding
     arrayUtils.removeDuplicates(cate_tags);
 
-    let categoryTags = []; //new empty array
-    for (let i = 0; i < cate_tags.length ; i++){
-        let cateId = cate_tags[i];
-
-        if (typeof(cateId) !== "string"){
-            return res.badRequest("category IDs in tagged array must be string");
+    Category.find({_id: cate_tags}, function (err, cate) {
+        if (err && err.name === "CastError") {
+            return res.badRequest("category error please pick from the available categories");
         }
-        categoryTags.push({categoryId: cateId});
-    }
-
-    let data = {
-        title: title,
-        story: story,
-        postedBy: userId,
-        category: categoryTags
-    };
-
-    Story.create(data, function (err, post) {
         if (err) {
-            console.log(err);
-            return res.serverError("Something unexpected happened");
+            return res.badRequest("something unexpected happened");
         }
+        let categoryTags = []; //new empty array
+        for (let i = 0; i < cate_tags.length; i++) {
+            let cateId = cate_tags[i];
 
-        User.update(
-            {"_id": userId},
-            {$inc: {rating: 100}}, function (err) {
-                if (err) {
-                    console.log(err);
-                }
+            if (typeof(cateId) !== "string") {
+                return res.badRequest("category IDs in tagged array must be string");
             }
-        );
+
+            categoryTags.push({categoryId: cateId});
+        }
 
         let data = {
-            postId : post._id,
-            title: post.title,
-            story: post.story,
-            postedOn: post.postedOn,
-            category: post.category
+            title: title,
+            story: story,
+            postedBy: ' ',
+            category: categoryTags
         };
-        res.success(data);
-    });
+console.log(data)
 
+        if( req.files.null){
+            let validated = validator.isFile(res, req.files.null);
+            if (!validated) return;
+            let file = req.files.null;
+
+                cloudUpload(file, function (err, result) {
+
+                if (err) {
+                    console.log(err);
+                    res.badRequest(err.message);
+                }
+
+                data.mediaUrl = result.secure_url;
+                data.mediaType = file.type;
+                data.public_id = result.public_id;
+            })
+        }
+        Story.create(data, function (err, post) {
+            if (err) {
+                console.log(err);
+                return res.serverError("Something unexpected happened");
+            }
+
+            User.update(
+                {"_id": userId},
+                {$inc: {rating: 100}}, function (err) {
+                    if (err) {
+                        console.log(err);
+                    }
+                }
+            );
+
+            let data = {
+                postId: post._id,
+                title: post.title,
+                story: post.story,
+                postedOn: post.postedOn,
+                category: post.category
+            };
+            if(file){
+                data.mediaType = post.mediaType;
+                data.mediaUrl = post.mediaUrl;
+            }
+            res.success(data);
+        });
+    })
 });
 
 /*** END POINT FOR EDITING POST BY A CURRENTLY LOGGED IN USER */
@@ -198,10 +215,6 @@ router.put('/:storyId', function (req, res) {
             path: 'postedBy',
             select: 'name'
         })
-        .populate({
-            path: 'category.categoryId',
-            select: 'title'
-        })
         .exec(function (err, post) {
             if (err) {
                 console.log(err);
@@ -217,41 +230,47 @@ router.put('/:storyId', function (req, res) {
                 title: post.title,
                 story: post.story,
                 postedBy: post.postedBy,
-                category: post.category
             };
+
             res.success(data);
         }
     );
 });
 
 /*** END POINT FOR DELETING A POST BY A CURRENTLY LOGGED IN USER */
-router.delete('/:postId', function (req, res) {
+router.delete('/:storyId', function (req, res) {
 
-    let id = req.params.postId;
+    let id = req.params.storyId;
 
-    // Story.findOne({_id: id, postedBy: req.user.id}, function (err, post) {
-    //     if (err) {
-    //         console.log(err);
-    //         return res.badRequest("Some error occurred");
-    //     }
-    //     cloudinary.v2.uploader.destroy(post.public_id, function (err, result) {
-    //         if (err) {
-    //             console.log(err);
-    //             return res.badRequest("Some error occurred");
-    //         }
-    //         console.log(result);
+    Story.findOne({_id: id, postedBy: req.user.id}, function (err, post) {
+        if (err) {
+            console.log(err);
+            return res.badRequest("Some error occurred");
+        }
+        if(!post){
+            return res.badRequest("no post found with the id given");
+        }
+        cloudinary.v2.uploader.destroy(post.public_id, function (err, result) {
+            if (err) {
+                console.log(err);
+                return res.badRequest("Some error occurred");
+            }
+            console.log(result);
+
             Story.remove({_id: id, postedBy: req.user.id}, function (err, result) {
                 if (err) {
                     console.log(err);
                     return res.badRequest("Some error occurred");
                 }
-                res.success('question successfully deleted')
+                console.log(result)
+                res.success('story deleted successfully')
             })
         });
-//     });
-// });
+    });
+});
 
-function cloudUpload(file,stream, callback) {
+
+function cloudUpload(file, callback) {
 
     if (file['type'].split('/')[0] === 'image') {
         console.log("it worked");

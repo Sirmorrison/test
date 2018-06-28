@@ -18,6 +18,6 @@ let blog = require('../controllers/post/blog');
 router.use('/blog', protector.protect, blog);
 
 let answer = require('../controllers/post/answer');
-router.use('/answer', protector.protect, answer);
+router.use('/answer', answer);
 
 module.exports = router;

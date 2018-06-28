@@ -16,5 +16,5 @@ let fields = {
     answerId: [answerIdSchema],
 };
 
-let Categories = new Schema(fields, {timestamps: true});
-module.exports = mongoose.model('Categories', Categories);
+let Bookmarks = new Schema(fields, {timestamps: true});
+module.exports = mongoose.model('Bookmarks', Bookmarks);
