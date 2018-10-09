@@ -4,58 +4,8 @@ let router = express.Router();
 let Story = require('../../models/story');
 let Question = require('../../models/question');
 let User = require('../../models/user');
-let Admin_post = require('../../models/admin_post');
+let Blog = require('../../models/blog');
 
-/*** END POINT FOR GETTING THE DISLIKES ON A STORIES ANSWER OF A USER BY LOGGED IN USERS*/
-router.get('/story/:storyId/:commentId', function (req, res) {
-
-    let storyId = req.params.storyId,
-        commentId = req.params.commentId;
-
-    Story.findOne({_id: storyId})
-        .populate({
-            path: 'comments.likes.userId',
-            select: 'name photoUrl public_id'
-        })
-        .sort({date: -1})
-        .exec(function (err, post) {
-                if (err) {
-                    return res.serverError("Something unexpected happened");
-                }
-                if (!post){
-                    return res.success('no post found with the id provided')
-                }
-
-                res.success(post.comments.id(commentId).likes);
-            }
-        );
-});
-
-/*** END POINT FOR GETTING THE DISLIKES ON A QUESTIONS ANSWER OF A USER BY LOGGED IN USERS*/
-router.get('/question/:questionId/:answerId', function (req, res) {
-
-    let questionId = req.params.questionId,
-        answerId = req.params.answerId;
-
-    Question.findOne({_id: questionId})
-        .populate({
-            path: 'answers.likes.userId',
-            select: 'name photoUrl public_id'
-        })
-        .sort({date: -1})
-        .exec(function (err, post) {
-            console.log(post);
-            if (err) {
-                return res.serverError("Something unexpected happened");
-            }
-            if (!post){
-                return res.success('no post found with the id provided')
-            }
-
-            res.success(post.answers.id(answerId).likes);
-        }
-    );
-});
 
 //STORY LIKES
 /*** END POINT FOR LIKING A STORY  BY CURRENTLY LOGGED IN USER */
@@ -183,7 +133,6 @@ router.post('/story/2/:postId', function (req, res) {
 
         res.success({liked: true});
     });
-
 });
 
 /*** END POINT FOR DELETING STORY OF A POST BY CURRENTLY LOGGED IN USER */
@@ -260,7 +209,6 @@ router.post('/question/:postId', function (req, res) {
     });
 });
 
-
 /*** END POINT FOR DELETING QUESTION OF A POST BY CURRENTLY LOGGED IN USER */
 router.delete('/question/:postId', function (req, res) {
     let updateOperation = {
@@ -278,6 +226,59 @@ router.delete('/question/:postId', function (req, res) {
         }
 
         res.success({liked: false});
+    });
+});
+
+//BLOG
+/*** END POINT FOR LIKING/UN-LIKING A POST COMMENT BY CURRENTLY LOGGED IN USER */
+router.post('/blog/:blogId/', function (req, res) {
+
+    let userId = req.user.id,
+        postId = req.params.blogId;
+
+    Blog.updateOne({
+        "_id": postId,
+        "likes": {
+            "$not": {
+                "$elemMatch": {
+                    "userId": userId
+                }
+            }
+        }
+    }, {
+        $addToSet: {
+            "likes": {
+                "userId": userId
+            }
+        }
+    },function (err, f) {
+        if (err) {
+            return res.badRequest("Something unexpected happened");
+        }
+        if(f.nModified === 0) {
+            Blog.update({
+                "_id": postId,
+                "likes": {
+                    "$elemMatch": {
+                        "userId": userId
+                    }
+                }
+            }, {
+                $pull: {
+                    "likes": {
+                        "userId": userId
+                    }
+                }
+            }, function (err) {
+                if (err) {
+                    return res.badRequest("Something unexpected happened");
+                }
+
+                return res.success({liked: false});
+            });
+        }
+
+        res.success({liked: true});
     });
 });
 
@@ -538,6 +539,87 @@ function answeredBy(questionId, answerId, callback) {
             }
         );
     });
+}
+
+function notification(postId,ownerId,userId, callback) {
+    userPro(postId,ownerId,userId, function (err, result) {
+        if (err){
+            console.log(err);
+            return callback('something unexpected happened');
+        }
+
+        console.log('im here');
+        if(result.notification === false) {
+            return callback(null);
+        }
+
+        let smtpTransport = nodemailer.createTransport({
+            service: 'gmail',
+            auth:{user: config.gmail.username, pass: config.gmail.password}
+        });
+        console.log(smtpTransport);
+
+        let  mailOptions = {
+            to: result.email,
+            // to: 'edonomorrison@gmail.com',
+            from:'oneplacesuppport@gmail.com',
+            subject: 'activity notification',
+            text: result.username+' just commented on your post on askOleum .\n\n'+
+            'Please click on the following link, or paste this into your browser to view: \n\n' +
+            //'http://'+ req.headers.host + "/post/comments/:" + storyId + "/:" + commentId + '\n\n ' +
+            'if you do not want to be getting these mails please go login into your profile and deactivate the option. \n'
+        };
+
+        smtpTransport.sendMail(mailOptions, function (err, f) {
+            if (err){
+                console.log(err)
+                return callback(err);
+            }
+
+            console.log(f)
+        });
+    })
+}
+
+function userPro(postId,ownerId,userId, callback) {
+
+    let ids = [ userId, ownerId];
+    User.find({_id: ids}, function (err, user) {
+        if (err){
+            console.log(err);
+            return callback('something unexpected happened');
+        }
+        if(!user){
+            return callback('something unexpected happened');
+        }
+
+        let info = {
+            message: user[0].name+' posted an answer to your question',
+            postId: postId,
+            ownerId: ownerId,
+            userId: userId
+        };
+
+        Notification.create(info, function (err, note) {
+            if (err){
+                console.log(err);
+                return callback('something unexpected happened');
+            }
+
+        });
+
+        let data = {};
+        data.username = user[0].name;
+        if(user && user[1]){
+            data.notification = user[1].notification;
+            data.email = user[1].email;
+        }else{
+            data.notification = user[0].notification;
+            data.email = user[0].email;
+        }
+
+        return callback(null, data)
+    })
 }
 
 module.exports = router;

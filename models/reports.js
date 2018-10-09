@@ -2,12 +2,14 @@ let mongoose = require("mongoose");
 let Schema = mongoose.Schema;
 
 let reportFields = {
-    report:{
+    query:{
         type: String,
         required: true
     },
-    reportedId:{
-        type: String,
+    report:[],
+    viewed: {
+        type: Boolean,
+        default: false,
         required: true
     },
     reportedBy: {

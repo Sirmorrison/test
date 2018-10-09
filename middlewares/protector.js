@@ -1,6 +1,5 @@
 const config = require('../config');
 let FirebaseAuth = require('firebaseauth');
-let firebase = new FirebaseAuth(config.FIREBASE_API_KEY);
 
 let customCallback = function(req, res, next, error, data){
     if (error === 'ERROR_NO_TOKEN'){
@@ -35,7 +34,8 @@ let customCallback = function(req, res, next, error, data){
     }
 };
 
+
 const serviceAccount = require("../service_account.json");
-const protector = firebase.protect(serviceAccount, customCallback);
+const protector = FirebaseAuth.initTokenMiddleware(serviceAccount, customCallback);
 
 exports.protect = protector;

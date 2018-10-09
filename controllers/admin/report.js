@@ -1,157 +1,132 @@
 let express = require('express');
 let router = express.Router();
 let mongoose = require("mongoose");
-let async = require('async');
 
 const Report = require('../../models/reports');
-let User = require('../../models/user');
-let Story = require('../../models/story');
-let Question = require('../../models/question');
+let Admin = require('../../models/admin_user');
 
 
-/*** END POINT FOR GETTING REPORT CURRENTLY LOGGED IN ADMIN */
-router.get('/', function (req, res) {
-    let userId = req.user.id;
+/*** END POINT FOR GETTING REPORTS CURRENTLY LOGGED IN ADMIN */
+router.get('/', allow('queries'), function (req, res) {
 
-    userVerify(userId, function (err) {
+    Report.aggregate([
+        {$match: {viewed: false}},
+        {
+            $project: {
+                report: 1,
+                query: 1,
+                reportedBy: 1,
+                createdAt: 1
+            },
+        },
+        {$sort: {createdAt: -1}},
+        {$limit: 10}
+    ], function (err, data) {
+
         if (err) {
             console.log(err);
-            return res.badRequest(err);
+            return res.badRequest(err, "Something unexpected happened");
         }
-        Report.find({})
-            .populate({
-                path: 'reportedBy',
-                select:'name photoUrl bio public_id ranking'
-            })
-            .sort({date: -1})
-            .exec(function(err, report) {
+
+        Report.populate(data, {
+                'path': 'reportedBy report.postedBy',
+                'model': 'User',
+                'select': 'name photoUrl'
+            },
+
+            function (err, post) {
+
                 if (err) {
                     console.log(err);
-                    return res.serverError("Something unexpected happened");
-                }
-                if (!report) {
-                    return res.success([]);
+                    return res.badRequest(err, "Something unexpected happened");
                 }
 
-                let info = {
-                    report: report.report,
-                    reportedId: report.photoUrl,
-                    reportedBy: report.name,
-                };
-
-            res.success(info);
-        })
+                res.success(post);
+            }
+        );
     });
 });
 
 /*** END POINT FOR GETTING A PARTICULAR  CURRENTLY LOGGED IN ADMIN */
-router.get('/:reportedId', function (req, res) {
-    let userId = req.user.id;
-    let id = req.params.reportedId;
-    userVerify(userId, function (err) {
+router.get('/:reportId', allow('queries'), function (req, res) {
+
+    let id = req.params.reportId;
+    Report.update({_id: id}, {$set: {viewed: true}}, function (err, z) {
         if (err) {
-            console.log(err);
-            return res.badRequest(err);
+            console.log(err)
         }
-        User.findById( id, function(err, user) {
+        Report.findById(id, function (err, report) {
             if (err) {
                 console.log(err);
                 return res.serverError("Something unexpected happened");
             }
-            if (user) {
+            if (!report) {
+                return res.badRequest("no report found with the id provided");
+            }
+            console.log(report)
+            Report.populate(report, {
+                'path': 'reportedBy report.userId',
+                'model': 'User',
+                'select': 'name photoUrl'
+            }, function (err, result) {
+                if (err) {
+                    console.log(err);
+                    return res.badRequest(err, "Something unexpected happened");
+                }
+
                 let info = {
-                    userId: user._id,
-                    name: user.name,
-                    createdAt: user.createdAt,
-                    email: user.email,
-                    photoUrl: user.photoUrl,
-                    address: user.address,
-                    bio: user.bio,
-                    following: user.following.length,
-                    followers: user.followers.length,
-                    ranking: user.ranking,
-                    profession: user.profession
+                    reportId: result._id,
+                    query: result.query,
+                    createdAt: result.createdAt,
+                    reportedBy: result.reportedBy,
+                    report: result.report
                 };
 
                 return res.success(info);
-            }
-            Story.findOne({_id: id})
-                .populate({
-                    path: 'postedBy',
-                    select: 'name bio photoUrl'
-                })
-                .exec(function (err, data) {
-                    if (err) {
-                        console.log(err);
-                        return res.serverError("Something unexpected happened");
-                    }
-                    if (data) {
-                        let info = {
-                            storyId: data._id,
-                            postedBy: data.postedBy,
-                            createdAt: data.createdAt,
-                            views: data.views.length,
-                            comments: data.comments.length,
-                            dislikes: data.dislikes.length,
-                            likes: data.likes.length
-                        };
-
-                        return res.success(info);
-                    }
-                    Question.findOne({"answers._id": id})
-                        .populate({
-                            path: 'postedBy',
-                            select: 'name photoUrl public_id'
-                        })
-                        .populate({
-                            path: 'answers.answeredBy',
-                            select: 'name photoUrl bio'
-                        })
-                        .exec(function (err, data) {
-                            if (err) {
-                                return res.serverError("Something unexpected happened");
-                            }
-                            if (!data) {
-                                return res.badRequest("data with id could not be found")
-                            }
-
-                            let info = {
-                                questionId: data._id,
-                                postedBy: data.postedBy,
-                                answerId: data.answers[0]._id,
-                                answer_createdAt: data.answers[0].createdAt,
-                                answeredBy: data.answers[0].answeredBy,
-                                'answer views': data.answers[0].views.length,
-                                'answer dislikes': data.answers[0].dislikes.length,
-                                'answer likes': data.answers[0].likes.length,
-                            };
-
-                            res.success(info);
-                        }
-                    );
-
-                }
-            )
+            })
         });
-    })
+    });
 });
 
+function allow(admin_function) {
+    return function (req, res, next) {
+        let userId = req.user.id;
+        Admin.findById(userId, function (err, user) {
+            if(err){
+                console.log(err);
+                return res.badRequest('something happened')
+            }
+            if (user) {
+                let that = user.admin_function;
+                for (let i = 0; i < that.length; i++) {
+                    if (that[i].match(admin_function) || user.role === 'general') {
+                        req.user = user;
 
-function userVerify(userId, callback) {
-    User.findById(userId, function (err, user) {
-        if (err) {
-            console.log(err);
-            return callback("Something unexpected happened");
-        }
-        if (!user) {
-            return callback("no user found with this id");
-        }
-        if (user.admin !== true) {
-            return callback("You are not Authorized Perform this Action");
-        }
+                        return next();
+                    }
+                }
+            }
 
-        return callback(null, user)
-    })
+
+            // if (user) {
+            //     let that = user.admin_function;
+            //     console.log(that)
+            //
+            //     for (let i = 0; i < that.length; i++) {
+            //         console.log(that[i].indexOf(admin_function.split(',')))
+            //
+            //         if (that[i].indexOf(admin_function.split(',')) >= 0) {
+            //             console.log(user)
+            //
+            //             req.user = user;
+            //             return next();
+            //         }
+            //     }
+            // }
+            return res.unauthorized('you are not authorized to perform this action')
+        })
+
+    }
 }
 
 module.exports = router;

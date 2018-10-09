@@ -55,39 +55,10 @@ router.post('/:questionId/:answerId', function (req, res) {
                 }
             );
 
-            // res.success(question.rating[question.rating.length - 1]._id);
             res.success(question.answers.id(answerId).rating[question.answers.id(answerId).rating.length - 1]._id)
         });
     });
 });
-
-/*** END POINT FOR EDITING RATING OF AN ANSWER BY CURRENTLY LOGGED IN USER */
-// router.put('/:questionId/:answerId', function (req, res) {
-//
-//     let questionId = req.params.questionId,
-//         answerId = req.params.answerId,
-//         id = req.user.id,
-//         rating = req.body.rating;
-//
-//     let validated = validator.isRating(res, rating);
-//     if (!validated) return;
-//
-//     Question.updateOne({
-//             "_id": questionId,
-//             'answers._id': answerId,
-//             "answers.$.rating.ratedBy": id
-//         }
-//         ,{$set: {"answers.$.rating.ratedBy(id)": rating}},
-//         function (err, result) {
-//             if (err) {
-//                 console.log(err);
-//                 return res.serverError("Something unexpected happened");
-//             }
-//             console.log(result)
-//             res.success(result, {success: true});
-//         }
-//     )
-// });
 
 /*** END POINT FOR DELETING ADDRESS BY ID OF CURRENTLY LOGGED IN USER */
 router.delete('/:questionId/:answerId', function (req, res) {

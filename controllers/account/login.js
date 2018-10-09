@@ -10,77 +10,77 @@ const User = require('../../models/user');
 const Admin = require('../../models/admin_user');
 
 /*** END POINT FOR LOGIN WITH EMAIL */
-router.post('/', function(req, res){
+router.post('/', function(req, res) {
+
     let email = req.body.email;
     let password = req.body.password;
 
-    let validated = validate.isValidPassword(res, password)&&
-                    validate.isValidEmail(res, email);
+    let validated = validate.isValidPassword(res, password) &&
+        validate.isValidEmail(res, email);
 
     if (!validated)
         return;
 
-    //read the firebaseAuth readme documentation for how it works
     firebase.signInWithEmail(email, password, function (err, resp) {
         if (err) {
             console.log(err);
-            //firebase errors come as object {code, message}, return only message
             return res.badRequest(err.message)
         }
 
         User.findById(resp.user.id, function (err, user) {
-
             if (err) {
                 console.log(err);
                 return res.badRequest("Something unexpected happened");
             }
-            if (user) {
-                console.log('im here because i find user');
-
-                let userInfo = {
-                    name: user.name,
-                    token: resp.token,
-                    refreshToken: resp.refreshToken,
-                    expiryMilliseconds: resp.expiryMilliseconds
-                };
-
-                return res.success(userInfo);
+            if (!user) {
+                return res.badRequest("no user found with this with this login information");
             }
 
-            Admin.findById(resp.user.id, function (err, user) {
-                if (err) {
-                    console.log(err);
-                    return res.badRequest("Something unexpected happened");
-                }
-                if (!user) {
-                    return res.badRequest("no user found with this with this login information");
-                }
+            let userInfo = {
+                name: user.name,
+                token: resp.token,
+                refreshToken: resp.refreshToken,
+                expiryMilliseconds: resp.expiryMilliseconds
+            };
 
-                let userInfo = {
-                    name: user.name,
-                    token: resp.token,
-                    refreshToken: resp.refreshToken,
-                    expiryMilliseconds: resp.expiryMilliseconds
-                };
+            res.success(userInfo);
 
-                return res.success(userInfo);
-            });
+            // Admin.findById(resp.user.id, function (err, user) {
+            //     if (err) {
+            //         console.log(err);
+            //         return res.badRequest("Something unexpected happened");
+            //     }
+            //     if (!user) {
+            //         return res.badRequest("no user found with this with this login information");
+            //     }
+            //
+            //     let userInfo = {
+            //         name: user.name,
+            //         token: resp.token,
+            //         refreshToken: resp.refreshToken,
+            //         expiryMilliseconds: resp.expiryMilliseconds
+            //     };
+            //
+            //     return res.success(userInfo);
+            // });
         });
     });
 });
 
 /*** END POINT FOR LOGIN WITH FACEBOOK */
 router.post('/facebook', function(req, res){
+
     let access_token = req.body.access_token;
+    let referrer = req.body.referrer;
+
     firebase.loginWithFacebook(access_token, function(err, firebaseResponse){
         if (err){
-            //firebase errors come as object {code, message}, return only message
             return res.badRequest(err.message);
         }
 
-        processFirebaseSocialLogin(firebaseResponse, function(errorMessage, userInfo){
+        processFirebaseSocialLogin(firebaseResponse, referrer, function(err, userInfo){
             if (err){
-                res.badRequest(errorMessage);
+                res.badRequest(err);
             }
             else {
                 res.success(userInfo);
@@ -91,16 +91,18 @@ router.post('/facebook', function(req, res){
 
 /*** END POINT FOR LOGIN WITH INSTAGRAM */
 router.post('/google', function(req, res) {
+
     let access_token = req.body.access_token;
+    let referrer = req.body.referrer;
+
     firebase.loginWithGoogle(access_token, function(err, firebaseResponse){
         if (err){
-            //firebase errors come as object {code, message}, return only message
             return res.badRequest(err.message);
         }
 
-        processFirebaseSocialLogin(firebaseResponse, function(errorMessage, userInfo){
+        processFirebaseSocialLogin(firebaseResponse, referrer, function(err, userInfo){
             if (err){
-                res.badRequest(errorMessage);
+                res.badRequest(err);
             }
             else {
                 res.success(userInfo);
@@ -109,47 +111,89 @@ router.post('/google', function(req, res) {
     });
 });
 
-function processFirebaseSocialLogin(firebaseResponse, callback) {
+function processFirebaseSocialLogin(firebaseResponse, referrer, callback) {
     User.findOne({_id: firebaseResponse.user.id}, function (err, user) {
         if (err) {
             console.log(err);
             return callback("Something unexpected happened");
         }
-
         if (!user) {
-            let info = {
-                _id: firebaseResponse.user.id,
-                name: firebaseResponse.user.displayName,
-                email: firebaseResponse.user.email,
-                photoUrl: firebaseResponse.user.photoUrl,
-            };
+            if (referrer) {
+                User.findOne({referrer: referrer}, function (err, ref) {
+                    if (err) {
+                        console.log(err);
+                        return callback("Something unexpected happened");
+                    }
+                    if (!ref) {
+                        return callback("no user found with the ref");
+                    }
 
-            User.create(info, function (err, user) {
-                if (err) {
-                    console.log(err);
-                    return callback("Something unexpected happened");
-                }
+                    let info = {
+                        _id: firebaseResponse.user.id,
+                        referrer: ref._id,
+                        name: firebaseResponse.user.displayName,
+                        photoUrl: firebaseResponse.user.photoUrl,
+                    };
 
+                    createAccount(info, function (err, user) {
+                        if (err) {
+                            console.log(err);
+                            return callback("Something unexpected happened");
+                        }
+                        let info = {
+                            name: user.name,
+                            token: firebaseResponse.token,
+                            refreshToken: firebaseResponse.refreshToken,
+                            expiryMilliseconds: firebaseResponse.expiryMilliseconds
+                        };
+
+                        return callback(null, info);
+                    })
+                })
+            } else {
                 let info = {
-                    name : user.name,
-                    photoUrl : user.photoUrl,
-                    token: firebaseResponse.token,
-                    refreshToken: firebaseResponse.refreshToken,
-                    expiryMilliseconds: firebaseResponse.expiryMilliseconds
+                    _id: firebaseResponse.user.id,
+                    name: firebaseResponse.user.displayName,
+                    photoUrl: firebaseResponse.user.photoUrl,
                 };
-                return callback(null, info);
-            });
-        }
-        else {
+
+                createAccount(info, function (err, user) {
+                    if (err) {
+                        console.log(err);
+                        return callback("Something unexpected happened");
+                    }
+                    let info = {
+                        name: user.name,
+                        token: firebaseResponse.token,
+                        refreshToken: firebaseResponse.refreshToken,
+                        expiryMilliseconds: firebaseResponse.expiryMilliseconds
+                    };
+
+                    return callback(null, info);
+                })
+            }
+        } else {
             let userInfo = {
-                name : user.name,
-                photoUrl : user.photoUrl,
+                name: user.name,
+                photoUrl: user.photoUrl,
                 token: firebaseResponse.token,
                 refreshToken: firebaseResponse.refreshToken,
                 expiryMilliseconds: firebaseResponse.expiryMilliseconds
             };
+
             return callback(null, userInfo);
         }
+    })
+}
+
+function createAccount(info, callback) {
+    User.create(info, function (err, user) {
+        if (err) {
+            console.log(err);
+            return callback("Something unexpected happened");
+        }
+
+        return callback(null, user)
     });
 }
 

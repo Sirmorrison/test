@@ -11,65 +11,102 @@ const validator = require('../../utils/validator');
 let User = require('../../models/user');
 
 /*** END POINT FOR SIGNUP WITH EMAIL */
-router.post('/', function(req, res){
+router.post('/', function(req, res) {
 
     let email = req.body.email,
         password = req.body.password,
         name = req.body.name,
-        phone_number = req.body.phone_number;
+        admin = req.body.admin,
+        referralCode = req.body.referralCode;
 
-    //chain validation checks, first one to fail will cause the code to break instantly
+    if (admin === 0 || admin === '0' || admin === 'f' || admin === 'false' || admin === 'no' || admin === null || admin === undefined)
+        admin = false;
+    else if (admin === 1 || admin === '1' || admin === 't' || admin === 'true' || admin === 'yes')
+        admin = true;
+
     let validated = validator.isValidEmail(res, email) &&
-                    validator.isValidPassword(res, password) &&
-                    validator.isValidPhoneNumber(res, phone_number) &&
-                    validator.isFullname(res, name);
-
-    if (!validated)
-        return;
+        validator.isValidPassword(res, password) &&
+        validator.isFullname(res, name);
+    if (!validated) return;
 
     let extras = {
         name: name,
         requestVerification: true
     };
-    User.findOne({phone_number: phone_number}, function (err, result) {
+
+    firebase.registerWithEmail(email, password, extras, function (err, firebaseResponse) {
         if (err) {
-            console.log(err);
-            return res.badRequest("Something unexpected happened");
+            return res.badRequest(err.message);
         }
-        if (result) {
-            return res.badRequest("A user already exist with this phone number: "+ phone_number);
-        }
-        if (!result) {
-            firebase.registerWithEmail(email, password, extras, function (err, firebaseResponse) {
+        if (referralCode) {
+            User.findOne({referralCode: referralCode}, function (err, result) {
                 if (err) {
-                    //firebase errors come as object {code, message}, return only message
-                    return res.badRequest(err.message);
+                    console.log(err);
+                    return res.badRequest("Something unexpected happened");
                 }
+                if (!result) {
+                    return res.badRequest("no user found with referrer code provided");
+                }
+
                 let info = {
                     _id: firebaseResponse.user.id,
                     name: firebaseResponse.user.displayName,
                     email: firebaseResponse.user.email,
-                    phone_number: phone_number
+                    admin: admin,
+                    referrer: result._id
                 };
-                User.create(info, function (err, user) {
+
+                createAccount(info, function (err, user) {
                     if (err) {
                         console.log(err);
-
                         return res.badRequest("Something unexpected happened");
                     }
-
-                        let info = {
+                    let info = {
                         name: user.name,
-                        phone_number: user.phone_number,
+                        referrer: user.referrer,
                         token: firebaseResponse.token,
                         refreshToken: firebaseResponse.refreshToken,
                         expiryMilliseconds: firebaseResponse.expiryMilliseconds
                     };
-                    res.success(info);
+
+                    return res.success(info);
                 });
+            })
+        }else {
+            console.log('no ref')
+            let info = {
+                _id: firebaseResponse.user.id,
+                name: firebaseResponse.user.displayName,
+                email: firebaseResponse.user.email,
+            };
+
+            createAccount(info, function (err, user) {
+                if (err) {
+                    console.log(err);
+                    return res.badRequest("Something unexpected happened");
+                }
+                let info = {
+                    name: user.name,
+                    token: firebaseResponse.token,
+                    refreshToken: firebaseResponse.refreshToken,
+                    expiryMilliseconds: firebaseResponse.expiryMilliseconds
+                };
+
+                return res.success(info);
             });
         }
     })
 });
+
+function createAccount(info, callback) {
+    User.create(info, function (err, user) {
+        if (err) {
+            console.log(err);
+            return callback("Something unexpected happened");
+        }
+
+        return callback(null, user)
+    });
+}
 
 module.exports = router;

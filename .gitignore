@@ -1,5 +1,6 @@
 # do not upload config files to github
 config.js
+readme doc.md
 README.md
 service_account.json
 .idea/

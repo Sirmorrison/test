@@ -5,84 +5,6 @@ let Story = require('../../models/story');
 let Question = require('../../models/question');
 let User = require('../../models/user');
 
-//GET DISLIKES
-/*** END POINT FOR GETTING THE DISLIKES ON A STORIES ANSWER OF A USER BY LOGGED IN USERS*/
-router.get('/story/:storyId/:commentId', function (req, res) {
-
-    let storyId = req.params.storyId,
-        commentId = req.params.commentId;
-
-    Story.findOne({_id: storyId})
-        .populate({
-            path: 'comments.dislikes.userId',
-            select: 'name photoUrl ranking'
-        })
-        .sort({date: -1})
-        .exec(function (err, post) {
-                console.log(post);
-                if (err) {
-                    return res.serverError("Something unexpected happened");
-                }
-                if (!post){
-                    return res.success('no post found with the id provided')
-                }
-
-                res.success(post.comments.id(commentId).dislikes);
-            }
-        );
-});
-
-/*** END POINT FOR GETTING THE DISLIKES ON A STORIES ANSWER OF A USER BY LOGGED IN USERS*/
-router.get('/story/:storyId/:commentId', function (req, res) {
-
-    let storyId = req.params.storyId,
-        commentId = req.params.commentId;
-
-    Story.findOne({_id: storyId})
-        .populate({
-            path: 'comments.dislikes.userId',
-            select: 'name photoUrl ranking'
-        })
-        .sort({date: -1})
-        .exec(function (err, post) {
-            console.log(post);
-            if (err) {
-                return res.serverError("Something unexpected happened");
-            }
-            if (!post){
-                return res.success('no post found with the id provided')
-            }
-
-            res.success(post.comments.id(commentId).dislikes);
-        }
-    );
-});
-
-/*** END POINT FOR GETTING THE DISLIKES ON A QUESTIONS ANSWER OF A USER BY LOGGED IN USERS*/
-router.get('/question/:questionId/:answerId', function (req, res) {
-
-    let questionId = req.params.questionId,
-        answerId = req.params.answerId;
-
-    Question.findOne({_id: questionId})
-        .populate({
-            path: 'answers.dislikes.userId',
-            select: 'name photoUrl ranking'
-        })
-        .sort({date: -1})
-        .exec(function (err, post) {
-                console.log(post);
-                if (err) {
-                    return res.serverError("Something unexpected happened");
-                }
-                if (!post){
-                    return res.success('no post found with the id provided')
-                }
-
-                res.success(post.answers.id(answerId).dislikes);
-            }
-        );
-});
 
 //POST DISLIKE
 /*** END POINT FOR DISLIKING A POST  BY CURRENTLY LOGGED IN USER */
@@ -176,7 +98,7 @@ router.post('/question/:postId', function (req, res) {
 });
 
 //COMMENT DISLIKE
-/*** END POINT FOR LIKING A COMMENT BY CURRENTLY LOGGED IN USER */
+/*** END POINT FOR DISLIKING A COMMENT BY CURRENTLY LOGGED IN USER */
 router.post('/story/:storyId/:commentId', function (req, res) {
 
     let userId = req.user.id;
@@ -218,7 +140,7 @@ router.post('/story/:storyId/:commentId', function (req, res) {
     });
 });
 
-/*** END POINT FOR LIKING AN ANSWER  BY CURRENTLY LOGGED IN USER */
+/*** END POINT FOR DISLIKING AN COMMENT  BY CURRENTLY LOGGED IN USER */
 router.post('/question/:questionId/:answerId', function (req, res) {
 
     let userId = req.user.id;

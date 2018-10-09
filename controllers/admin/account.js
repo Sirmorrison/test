@@ -11,191 +11,264 @@ cloudinary.config(config.cloudinary);
 
 const protector = require('../../middlewares/protector');
 const validator = require('../../utils/validator');
-
+let arrayUtils = require('../../utils/array');
 let Admin = require('../../models/admin_user');
-let Category = require('../../models/admin_category');
 
 
 /*** END POINT FOR GETTING PERSONAL PROFILE BY CURRENTLY LOGGED IN ADMIN USER */
 router.get('/profile', function(req, res) {
 
     let id = req.user.id;
-    Admin.aggregate([
-        {$match: {'_id': id}},
-        {$project: {email:1, admin_position:1, phone_number:1, photoUrl:1, profession:1, name:1, createdAt: 1, address:1, updatedAt:1,
-            organization:1, from:1, to:1, roles_description:1, category:1}},
-    ], function (err, data) {
-        if (err) {
-            console.log(err);
-            return res.badRequest("Something unexpected happened");
-        }
+    Admin.findOne({_id: id},{public_id:0, updatedAt:0, __v:0}, function (err, user) {
+       if (err){
+           console.log(err)
+           return res.badRequest("something unexpected happened")
+       }
+       if (!user){
+           res.badRequest('no user found the user id provided')
+       }
 
-        res.success(data);
-    });
-});
-
-/*** END POINT FOR GETTING PERSONAL PROFILE BY CURRENTLY LOGGED IN ADMIN USER */
-router.get('/profile/:userId', function(req, res) {
-
-    let id = req.params.userId;
-    Admin.aggregate([
-        {$match: {'_id': id}},
-        {$project: {email:1, admin_position:1, phone_number:1, photoUrl:1, profession:1, name:1, createdAt: 1, address:1
-            , updatedAt:1, organization:1, from:1, to:1, roles_description:1, category:1}},
-    ], function (err, data) {
-        if (err) {
-            console.log(err);
-            return res.badRequest("Something unexpected happened");
-        }
-
-        res.success(data);
-    });
-});
-
-/*** END POINT FOR CREATING AND ADMIN USER BY SUPER ADMIN */
-router.post('/create', function(req, res){
-
-    let userId = req.user.id;
-    userVerify(userId, function (err) {
-        if (err) {
-            console.log(err);
-            return res.badRequest(err);
-        }
-        let email = req.body.email,
-            password = req.body.password,
-            name = req.body.name,
-            cateId = req.body.category,
-            phone_number = req.body.phone_number,
-            organization = req.body.organization,
-            category = req.body.category,
-            from = req.body.from,
-            to = req.body.to,
-            roles_description = req.body.roles_description;
-
-        //chain validation checks, first one to fail will cause the code to break instantly
-        let validated = validator.isValidEmail(res, email) &&
-            validator.isValidPassword(res, password) &&
-            validator.isValidPhoneNumber(res, phone_number) &&
-            validator.isWord(res, cateId) &&
-            validator.isFullname(res, name);
-
-        if (!validated)
-            return;
-
-        let extras = {
-            name: name,
-            requestVerification: true
-        };
-
-        cateVerify(cateId, function (err, data) {
-            if (err) {
-                console.log(err);
-                return res.badRequest(err);
-            }
-
-            firebase.registerWithEmail(email, password, extras, function (err, firebaseResponse) {
-                if (err) {
-                    //firebase errors come as object {code, message}, return only message
-                    return res.badRequest(err.message);
-                }
-
-                let info = {
-                    _id: firebaseResponse.user.id,
-                    name: firebaseResponse.user.displayName,
-                    email: firebaseResponse.user.email,
-                    phone_number: phone_number,
-                    admin_category: admin_category
-                };
-
-                if (organization) {
-                    let valid = validator.isWord(res, organization);
-                    if (!valid) return;
-                    info.organization = organization;
-                }
-                if (category) {
-                    let valid = validator.isWord(res, category);
-                    if (!valid) return;
-                    info.category = category;
-                }
-                if (from) {
-                    let valid = validator.isWord(res, from);
-                    if (!valid) return;
-                    info.from = from;
-                }
-                if (to) {
-                    let valid = validator.isWord(res, to);
-                    if (!valid) return;
-                    info.to = to;
-                }
-                if (roles_description) {
-                    let valid = validator.isSentence(res, roles_description);
-                    if (!valid) return;
-                    info.roles_description = roles_description;
-                }
-
-                Admin.create(info, function (err, user) {
-                    if (err) {
-                        console.log(err);
-
-                        return res.badRequest("Something unexpected happened");
-                    }
-
-                    res.success('Admin user successfully registered. login with email: ', email, 'password: ', password);
-                });
-            });
-        })
+       res.success(user)
     })
 });
 
-/*** END POINT FOR UPDATING USER CATEGORIES OF CURRENTLY SIGNED UP USER */
-router.post('/update', function(req, res){
+/*** END POINT FOR GETTING PERSONAL PROFILE OF ANOTHER ADMIN BY CURRENTLY LOGGED IN ADMIN USER */
+router.get('/profile/:userId', allow('account'), function(req, res) {
+
+    let id = req.params.userId;
+    Admin.findOne({_id: id},{public_id:0, updatedAt:0, createdBy:0, __v:0 }, function (err, user) {
+        if (err){
+            console.log(err);
+            return res.badRequest("something unexpected happened")
+        }
+        if (!user){
+            res.badRequest('no user found the user id provided')
+        }
+
+        res.success(user)
+    })
+});
+
+/*** END POINT FOR REGISTERING AN ADMIN USER BY ANOTHER ADMIN */
+router.post('/register', function(req, res){
+
+    let email = req.body.email,
+        password = req.body.password,
+        name = req.body.name,
+        passcode = req.user.passcode,
+        userId = req.user.id,
+        phone_number = req.body.phone_number,
+        role = req.body.role,
+        admin_function = req.body.admin_function;
+
+    //chain validation checks, first one to fail will cause the code to break instantly
+    let validated = validator.isValidEmail(res, email) &&
+        validator.isValidPassword(res, password) &&
+        validator.isValidPassword(res, passcode) &&
+        validator.isValidPhoneNumber(res, phone_number) &&
+        validator.isWord(res, role) &&
+        validator.isFullname(res, name);
+    if (!validated) return;
+
+    arrayUtils.removeDuplicates(admin_function);
+    console.log(validated);
+
+    let allowedAdmin_function = ['users', 'queries', 'blog', 'stories', 'pricing', 'question',
+        'wallet','messages', 'categories', 'admin', 'account', 'all'];
+
+    let funct = [];
+    for (let i = 0; i < admin_function.length; i++) {
+        let cateId = admin_function[i];
+
+        if (cateId && allowedAdmin_function.indexOf(cateId.toLowerCase()) < 0){
+            return res.badRequest("error: one or more admin functions do not apply please verify and try again");
+        }
+
+        funct.push(cateId);
+    }
+    console.log(funct);
+
+    let extras = {
+        name: name,
+        requestVerification: true
+    };
+
+    toFirebase(email, password, extras, function (err, firebaseResponse) {
+        if (err) {
+            return res.badRequest(err)
+        }
+
+        let info = {
+            _id: firebaseResponse.user.id,
+            name: firebaseResponse.user.displayName,
+            email: firebaseResponse.user.email,
+            phone_number: phone_number,
+            role: role,
+            passcode: passcode,
+            admin_function: funct,
+            createdBy: userId
+        };
+
+        createReport(info, function (err, data) {
+            if (err) {
+                console.log(err);
+                return res.badRequest(err.message);
+            }
+
+            console.log(data);
+            return res.success('Admin user successfully registered. login with email: ' + info.email +
+                '  password: ' + req.body.password + " and experience was not included");
+        });
+    })
+});
+
+/*** END POINT FOR REGISTERING AN ADMIN USER BY ANOTHER ADMIN */
+router.post('/create', allow('all'),  function(req, res){
+
+    let email = req.body.email,
+        password = req.body.password,
+        name = req.body.name,
+        userId = req.user.id,
+        phone_number = req.body.phone_number,
+        role = req.body.role,
+        admin_function = req.body.admin_function,
+        organization = req.body.organization,
+        category = req.body.category,
+        from = req.body.from,
+        to = req.body.to,
+        role_description = req.body.role_description;
+
+    //chain validation checks, first one to fail will cause the code to break instantly
+    let validated = validator.isValidEmail(res, email) &&
+        validator.isValidPassword(res, password) &&
+        validator.isValidPhoneNumber(res, phone_number) &&
+        validator.isWord(res, role) &&
+        validator.isFullname(res, name);
+    if (!validated) return;
+
+    arrayUtils.removeDuplicates(admin_function);
+    let allowedAdmin_function = ['users', 'queries', 'blog', 'stories', 'pricing', 'question',
+                                    'wallet','messages', 'categories', 'admin', 'account'];
+
+    let funct = [];
+    for (let i = 0; i < admin_function.length; i++) {
+        let cateId = admin_function[i];
+
+        if (cateId && allowedAdmin_function.indexOf(cateId.toLowerCase()) < 0){
+            return res.badRequest("error: one or more admin functions do not apply please verify and try again");
+        }
+
+         funct.push(cateId);
+    }
+    console.log(funct);
+
+    let extras = {
+        name: name,
+        requestVerification: true
+    };
+
+    if (organization || category || from || to || role_description) {
+        let validated = validator.isSentence(res, category) &&
+            validator.isSentence(res, role_description) &&
+            validator.isWord(res, from) &&
+            validator.isWord(res, to) &&
+            validator.isWord(res, organization);
+        if (!validated) return;
+
+        toFirebase(email, password, extras, function (err, firebaseResponse) {
+            if (err){
+                return res.badRequest(err)
+            }
+
+            let info = {
+                _id: firebaseResponse.user.id,
+                name: firebaseResponse.user.displayName,
+                email: firebaseResponse.user.email,
+                phone_number: phone_number,
+                role: role,
+                admin_function: funct,
+                createdBy: userId,
+                'experience.category' : category,
+                'experience.role_description': role_description,
+                'experience.from': from,
+                'experience.to': to,
+                'experience.organization': organization
+            };
+
+            createReport(info, function (err, data) {
+                if (err) {
+                    console.log(err);
+                    return res.badRequest(err.message);
+                }
+
+                console.log(data);
+                return res.success('Admin user successfully registered. login with email: ' + info.email + ' password: ' + req.body.password + " and experience was included");
+            });
+        })
+    }else{
+        toFirebase(email, password, extras, function (err, firebaseResponse) {
+            if (err) {
+                return res.badRequest(err)
+            }
+
+            let info = {
+                _id: firebaseResponse.user.id,
+                name: firebaseResponse.user.displayName,
+                email: firebaseResponse.user.email,
+                phone_number: phone_number,
+                role: role,
+                admin_function: funct,
+                createdBy: userId
+            };
+
+            createReport(info, function (err, data) {
+                if (err) {
+                    console.log(err);
+                    return res.badRequest(err.message);
+                }
+
+                console.log(data);
+                return res.success('Admin user successfully registered. login with email: ' + info.email +
+                    '  password: ' + req.body.password + " and experience was not included");
+            });
+        })
+    }
+});
+
+/*** END POINT FOR UPDATING PERSONAL PROFILE BY CURRENTLY LOGGED IN ADMIN USER */
+router.put('/update_profile', function(req, res) {
 
     let name = req.body.name,
-        address = req.body.address,
+        passcode = req.body.passcode,
+        id = req.user.id,
         phone_number = req.body.phone_number;
 
-    if (!(name || address || phone_number)){
+    if (!(name || passcode || phone_number)) {
         return res.badRequest('Please input the value to the field you would love to update');
     }
 
     let profile = {};
 
-    if (name){
+    if (name) {
         let fullName = validator.isFullname(res, name);
-        if(!fullName)
-            return;
+        if (!fullName) return;
         profile.name = name;
     }
-    if (phone_number){
+    if (phone_number) {
         let valid = validator.isValidPhoneNumber(res, phone_number);
-        if(!valid) return;
-
-        Admin.findOne({phone_number: phone_number}, function (err, user) {
-            if (err) {
-                console.log(err);
-                return res.serverError("Something unexpected happened");
-            }
-            if (user && user._id !== req.user.id) {
-                return res.badRequest('A user already Exist with Phone Number: ' + phone_number);
-            }
-            if (user && user._id === req.user.id) {
-                return res.badRequest('Phone number already used by You. select a new Phone number you will love to change to');
-            }
-
-            profile.phone_number = phone_number;
-        })
+        if (!valid) return;
+        profile.phone_number = phone_number;
     }
-    if (address){
-        let address1 = validator.isSentence(res, address);
-        if(!address1)
-            return;
-        profile.address = address;
+    if (passcode) {
+        let valid = validator.isValidPassword(res, passcode);
+        if (!valid) return;
+        profile.passcode = passcode;
     }
 
-    Admin.findByIdAndUpdate(req.user.id,
+    Admin.findByIdAndUpdate(id,
         {$set: profile},
         {new: true},
-        function(err, user) {
+        function (err, user) {
             if (err) {
                 console.log(err);
                 return res.serverError("Something unexpected happened");
@@ -209,16 +282,11 @@ router.post('/update', function(req, res){
                 name: user.name,
                 email: user.email,
                 phone_number: user.phone_number,
-                address: user.address,
-                organization: user.organization,
-                from: user.from,
-                to: user.to,
+                experience: user.experience,
                 admin_position: user.admin_position,
-                category: user.category,
-                roles_description: user.roles_description
             };
 
-            if (name){
+            if (name) {
                 let token = req.body.token || req.query.token || req.headers['x-access-token'];
                 firebase.updateProfile(token, name, function (err) {
                     if (err) {
@@ -228,15 +296,14 @@ router.post('/update', function(req, res){
                     res.success(info);
                 });
             }
-            else{
+            else {
                 res.success(info);
             }
-        }
-    );
+        });
 });
 
-/*** END POINT FOR UPDATING PROFILE PICTURE OF CURRENTLY LOGGED IN USER */
-router.put('/photo', function(req, res) {
+/*** END POINT FOR UPDATING PROFILE PICTURE OF CURRENTLY LOGGED IN ADMIN USER */
+router.put('/profile_photo', function(req, res) {
     let file = req.files.null,
         path = file.path,
         id = req.user.id;
@@ -250,20 +317,19 @@ router.put('/photo', function(req, res) {
         return res.badRequest("file to be uploaded must be an image and a jpeg/jpg format");
     }
 
-    User.findOne({_id: id}, function (err, user) {
+    Admin.findOne({_id: id}, function (err, user) {
         if (err) {
             return res.badRequest(err);
         }
         if (!user) {
-            return res.badRequest('no user found with your id: ' + id);
+            return res.badRequest('no user found with your login details provided');
         }
         console.log('first '+ user.public_id);
         if (user.public_id === null || user.public_id === 0 || user.public_id === undefined) {
-            console.log('im starting it fail here');
 
             cloudUpload(path, function (err, result) {
                 if (err) {
-                    console.log('it fail here' +err);
+                    console.log('error here' +err);
                     res.badRequest(err.message);
                 }
                 console.log(result);
@@ -276,7 +342,7 @@ router.put('/photo', function(req, res) {
                     if (err) {
                         console.log(err);
                     }
-                    console.log('saving user', user);
+                    console.log('saving user');
                     fs.unlink(file.path, function (err , g) {
                         if (err) {
                             console.log(err);
@@ -330,7 +396,7 @@ router.put('/photo', function(req, res) {
     })
 });
 
-/*** END POINT FOR FOR REQUESTING PASSWORD CHANGE BY LOGGED IN USER */
+/*** END POINT FOR FOR REQUESTING PASSWORD CHANGE BY LOGGED IN ADMIN USER */
 router.post('/edit_password', function(req, res){
 
     let password = req.body.password;
@@ -355,37 +421,6 @@ router.post('/edit_password', function(req, res){
     });
 });
 
-function userVerify(userId, callback) {
-    Admin.findById(userId, function (err, user) {
-        if (err) {
-            console.log(err);
-            return callback("Something unexpected happened");
-        }
-        if (!user) {
-            return callback("no user found with this id");
-        }
-        if (user.admin_category !== 'adminSuper') {
-            return callback("You are not Authorized Perform this Action");
-        }
-
-        return callback(null, user)
-    })
-}
-
-function cateVerify(cateId, callback) {
-    Category.findOne({_id: cateId}, function (err, category) {
-        if (err) {
-            console.log(err);
-            return callback("Something unexpected happened");
-        }
-        if (!category) {
-            return callback("no category found with the id provided");
-        }
-
-        return callback(null, category)
-    })
-}
-
 function cloudUpload(path, callback) {
 
     cloudinary.v2.uploader.upload(path, function (err, result){
@@ -397,6 +432,63 @@ function cloudUpload(path, callback) {
             return callback(null, result);
         }
     })
+}
+
+function createReport(data, callback) {
+    Admin.create(data, function (err, story) {
+        if (err) {
+            console.log(err);
+            return callback("Something unexpected happened");
+        }
+
+        return callback(null, story)
+    })
+}
+
+function toFirebase(email, password, extras, callback) {
+    firebase.registerWithEmail(email, password, extras, function (err, firebaseResponse) {
+        if (err) {
+            console.log(err);
+            //firebase errors come as object {code, message}, return only message
+            return callback(err.message);
+        }
+
+        return callback(null, firebaseResponse)
+    })
+}
+
+function allow(admin_function) {
+    return function (req, res, next) {
+        let userId = req.user.id,
+            passcode = req.body.passcode;
+        if(!passcode){
+            return res.badRequest('please enter your passcode')
+        }
+        Admin.findById(userId, function (err, user) {
+            if(err){
+                console.log(err);
+                return res.badRequest('something happened')
+            }
+            if(!user){
+                return res.badRequest('no user found with your login details')
+            }
+            if(user && user.passcode !== passcode){
+                return res.badRequest('passcode error please check and try again')
+            }
+            if (user) {
+                let that = user.admin_function;
+                for (let i = 0; i < that.length; i++) {
+                    if (that[i].match(admin_function) || user.role === 'general') {
+                        req.user = user;
+
+                        return next();
+                    }
+                }
+            }
+
+            return res.unauthorized('you are not authorized to perform this action')
+        })
+    }
 }
 
 module.exports = router;

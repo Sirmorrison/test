@@ -7,8 +7,7 @@ let firebase = new FirebaseAuth(config.FIREBASE_API_KEY);
 
 router.post('/', function(req, res){
 
-    let refreshToken = req.body.refreshToken || req.query.refreshToken || req.headers['x-access-refreshToken'];
-
+    let refreshToken =  (req.headers.refreshToken || req.body.refreshToken || req.query.refreshToken)
     if (typeof(refreshToken) !== 'string'){
         return res.badRequest('refreshToken is required');
     }
@@ -22,6 +21,5 @@ router.post('/', function(req, res){
         res.success(response);
     });
 });
-
 
 module.exports = router;

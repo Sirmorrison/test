@@ -14,21 +14,11 @@ const cloudinary = require('cloudinary');
 let validator = require('../../utils/validator'),
     User = require('../../models/user'),
     Question = require('../../models/question'),
-    Category = require('../../models/categories'),
-    Story = require('../../models/story');
+    Blog = require('../../models/blog'),
+    Answers = require('../../models/answers'),
+    Story = require('../../models/story'),
+    Packages = require('../../models/packages');
 
-/*** END POINT FOR GETTING A LIST PROFILE CATEGORIES BY NEWLY USER */
-router.get('/categories', function (req, res) {
-
-    Category.find({}, {title:1},function (err, result) {
-        if (err) {
-            console.log(err);
-            return res.badRequest("Something unexpected happened");
-        }
-
-        res.success(result);
-    })
-});
 
 /*** END POINT FOR GETTING PERSONAL PROFILE BY CURRENTLY LOGGED IN USER */
 router.get('/', function(req, res) {
@@ -41,73 +31,60 @@ router.get('/', function(req, res) {
         }
          User.aggregate([
             {$match: {'_id': user._id}},
-            {
-                $lookup: {
-                    from: "stories",
-                    localField: "_id",
-                    foreignField: "postedBy",
-                    as: "stories"
-                }
-            },
-            {
-                $lookup: {
-                    from: "questions",
-                    localField: "id",
-                    foreignField: "postedBy",
-                    as: "questions"
-                }
-            },
+             {
+                 $lookup: {
+                     from: "stories",
+                     localField: "_id",
+                     foreignField: "postedBy",
+                     as: "stories"
+                 }
+             },
+             {
+                 $lookup: {
+                     from: "questions",
+                     localField: "_id",
+                     foreignField: "postedBy",
+                     as: "questions"
+                 }
+             },
+             {
+                 $lookup: {
+                     from: "answers",
+                     localField: "_id",
+                     foreignField: "answeredBy",
+                     as: "answers"
+                 }
+             },
+             {
+                 $lookup: {
+                     from: "blogs",
+                     localField: "_id",
+                     foreignField: "postedBy",
+                     as: "blogs"
+                 }
+             },
             {
                 $project: {
-                    'total Following': {$size: "$following"},
-                    'total Followers': {$size: "$followers"},
                     email: 1,
                     'categoryTags.categoryId': 1,
                     phone_number: 1,
+                    referralCode: 1,
+                    company: 1,
+                    role: 1,
                     bio: 1,
-                    photoUrl: 1,
+                    profile_picture: 1,
+                    cv_Urls: 1,
                     profession: 1,
                     name: 1,
                     ranking: 1,
-                    followers: 1,
-                    following: 1,
                     createdAt: 1,
                     address: 1,
-                    packageType: 1
-                    ,
-                    'total stories': {$size: "$stories"},
-                    stories: {
-                        $map: {
-                            input: '$stories',
-                            as: "element",
-                            in: {
-                                postId: "$$element._id",
-                                postedOn: '$$element.createdAt',
-                                postedBy: '$$element.postedBy',
-                                title: '$$element.title',
-                                story: '$$element.story',
-                                views: "$$element.views" ,
-                                likes: { $size: "$$element.likes" },
-                                comments: { $size: "$$element.comments" },
-                                dislikes: { $size: "$$element.dislikes" }
-                            }
-                        }
-                    },
-                    questions: {
-                        $map: {
-                            input: '$questions',
-                            as: "element",
-                            in: {
-                                questionId: "$$element._id",
-                                postedOn: '$$element.createdAt',
-                                postedBy: '$$element.postedBy',
-                                question: '$$element.question',
-                                views: "$$element.views" ,
-                                answers: { $avg: "$$element.answers" },
-                            }
-                        },
-                    },
-                    'total questions': {$size: "$questions"}
+                    packageType: 1,
+                    total_stories: {$size: "$stories"},
+                    total_questions: {$size: "$questions"},
+                    total_blogs: {$size: "$blogs"},
+                    total_Following: {$size: "$following"},
+                    total_Followers: {$size: "$followers"},
                 }
             }
         ], function (err, data) {
@@ -117,8 +94,8 @@ router.get('/', function(req, res) {
             }
 
             User.populate(data, {
-                    'path': 'followers.userId following.userId categoryTags.categoryId posts.postedBy questions.postedBy',
-                    'select': 'name photoUrl bio title'
+                    'path': 'categoryTags.categoryId',
+                    'select': 'name photoUrl ranking'
                 },
 
                 function (err, user) {
@@ -137,7 +114,7 @@ router.get('/', function(req, res) {
     });
 });
 
-/*** END POINT FOR GETTING PERSONAL PROFILE BY CURRENTLY LOGGED IN USER */
+/*** END POINT FOR GETTING PROFILE OF A USER BY ANOTHER CURRENTLY LOGGED IN USER */
 router.get('/:userId', function(req, res) {
 
     let id = req.params.userId;
@@ -159,15 +136,29 @@ router.get('/:userId', function(req, res) {
             {
                 $lookup: {
                     from: "questions",
-                    localField: "id",
+                    localField: "_id",
                     foreignField: "postedBy",
                     as: "questions"
                 }
             },
             {
+                $lookup: {
+                    from: "answers",
+                    localField: "_id",
+                    foreignField: "answeredBy",
+                    as: "answers"
+                }
+            },
+            {
+                $lookup: {
+                    from: "blogs",
+                    localField: "_id",
+                    foreignField: "postedBy",
+                    as: "blogs"
+                }
+            },
+            {
                 $project: {
-                    'total Following': {$size: "$following"},
-                    'total Followers': {$size: "$followers"},
                     email: 1,
                     'categoryTags.categoryId': 1,
                     phone_number: 1,
@@ -176,45 +167,17 @@ router.get('/:userId', function(req, res) {
                     profession: 1,
                     name: 1,
                     ranking: 1,
-                    followers: 1,
-                    following: 1,
                     createdAt: 1,
                     address: 1,
-                    'total stories': {$size: "$stories"},
-                    posts: {
-                        $map: {
-                            input: '$stories',
-                            as: "element",
-                            in: {
-                                postId: "$$element._id",
-                                postedOn: '$$element.createdAt',
-                                postedBy: '$$element.postedBy',
-                                title: '$$element.title',
-                                views: "$$element.views" ,
-                                likes: { $size: "$$element.likes" },
-                                comments: { $size: "$$element.comments" },
-                                dislikes: { $size: "$$element.dislikes" }
-                            }
-                        }
-                    },
-                    questions: {
-                        $map: {
-                            input: '$questions',
-                            as: "element",
-                            in: {
-                                questionId: "$$element._id",
-                                postedOn: '$$element.createdAt',
-                                postedBy: '$$element.postedBy',
-                                question: '$$element.question',
-                                views: "$$element.views" ,
-                                answers: { $avg: "$$element.answers" },
-                            }
-                        },
-                    },
-                    'total questions': {$size: "$questions"}
-                },
+                    packageType: 1,
+                    total_stories: {$size: "$stories"},
+                    total_questions: {$size: "$questions"},
+                    total_answers: {$size: "$answers"},
+                    total_blogs: {$size: "$blogs"},
+                    'total_Following': {$size: "$following"},
+                    'total_Followers': {$size: "$followers"},
+                }
             },
-            {$limit: 20}
         ], function (err, data) {
             if (err) {
                 console.log(err);
@@ -242,38 +205,212 @@ router.get('/:userId', function(req, res) {
     });
 });
 
+/*** END POINT FOR GETTING QUESTIONS OF A CURRENTLY LOGGED IN USER */
+router.get('/story', function (req, res) {
+
+    let id = req.user.id;
+    Story.aggregate([
+        {$match: {'postedBy': id}},
+        {
+            $project: {
+                answers: {$size: "$answers"},
+                comments: {$size: '$comments'},
+                views: 1,
+                "category.categoryId": 1,
+                createdAt: 1,
+                postedBy: 1,
+                question: 1
+            }
+        },
+        {$sort: {date: -1}},
+    ], function (err, data) {
+        console.log(data);
+        if (err) {
+            console.log(err);
+            return res.badRequest("Something unexpected happened");
+        }
+
+        Story.populate(data, {
+                'path': 'postedBy category.categoryId',
+                'select': 'name photoUrl ranking title'
+            },
+
+            function (err, post) {
+                if (err) {
+                    console.log(err);
+                    return res.badRequest("Something unexpected happened");
+                }
+
+                res.success(post);
+            }
+        );
+    });
+});
+
+/*** END POINT FOR GETTING QUESTIONS OF A CURRENTLY LOGGED IN USER */
+router.get('/story/:userId', function (req, res) {
+
+    let id = req.params.userId;
+    Story.aggregate([
+        {$match: {'postedBy': id}},
+        {
+            $project: {
+                answers: {$size: "$answers"},
+                comments: {$size: '$comments'},
+                views: 1,
+                "category.categoryId": 1,
+                createdAt: 1,
+                postedBy: 1,
+                question: 1
+            }
+        },
+        {$sort: {date: -1}},
+    ], function (err, data) {
+        console.log(data);
+        if (err) {
+            console.log(err);
+            return res.badRequest("Something unexpected happened");
+        }
+
+        Story.populate(data, {
+                'path': 'postedBy category.categoryId',
+                'select': 'name photoUrl  ranking title'
+            },
+
+            function (err, post) {
+
+                if (err) {
+                    console.log(err);
+                    return res.badRequest("Something unexpected happened");
+                }
+
+                res.success(post);
+            }
+        );
+    });
+});
+
+/*** END POINT FOR GETTING QUESTIONS OF A CURRENTLY LOGGED IN USER */
+router.get('/blog', function (req, res) {
+
+    let id = req.user.id;
+    Blog.aggregate([
+        {$match: {'postedBy': id}},
+        {
+            $project: {
+                answers: {$size: "$answers"},
+                comments: {$size: '$comments'},
+                views: 1,
+                "category.categoryId": 1,
+                createdAt: 1,
+                postedBy: 1,
+                question: 1
+            }
+        },
+        {$sort: {date: -1}},
+    ], function (err, data) {
+        console.log(data);
+        if (err) {
+            console.log(err);
+            return res.badRequest("Something unexpected happened");
+        }
+
+        Blog.populate(data, {
+                'path': 'postedBy category.categoryId',
+                'select': 'name photoUrl ranking title'
+            },
+
+            function (err, post) {
+                if (err) {
+                    console.log(err);
+                    return res.badRequest("Something unexpected happened");
+                }
+
+                res.success(post);
+            }
+        );
+    });
+});
+
+/*** END POINT FOR GETTING QUESTIONS OF A CURRENTLY LOGGED IN USER */
+router.get('/blog/:userId', function (req, res) {
+
+    let id = req.params.userId;
+    Blog.aggregate([
+        {$match: {'postedBy': id}},
+        {
+            $project: {
+                answers: {$size: "$answers"},
+                comments: {$size: '$comments'},
+                views: 1,
+                "category.categoryId": 1,
+                createdAt: 1,
+                postedBy: 1,
+                question: 1
+            }
+        },
+        {$sort: {date: -1}},
+    ], function (err, data) {
+        console.log(data);
+        if (err) {
+            console.log(err);
+            return res.badRequest("Something unexpected happened");
+        }
+
+        Blog.populate(data, {
+                'path': 'postedBy category.categoryId',
+                'select': 'name photoUrl  ranking title'
+            },
+
+            function (err, post) {
+
+                if (err) {
+                    console.log(err);
+                    return res.badRequest("Something unexpected happened");
+                }
+
+                res.success(post);
+            }
+        );
+    });
+});
+
 /*** END POINT FOR GETTING ANSWERS OF A CURRENTLY LOGGED IN USER */
 router.get('/answer', function (req, res) {
 
     let id = req.user.id;
-
-    Question.aggregate([
-        {$match: {'answers.answeredBy': id}},
+    Answers.aggregate([
+        {$match: {'answeredBy': id}},
         {
             $project: {
-                answers: {
-                    $map: {
-                        input: '$answers',
-                        as: "element",
-                        in: {
-                            answerId: "$$element._id",
-                            answeredOn: '$$element.createdAt',
-                            answeredBy: '$$element.answeredBy',
-                            answer: '$$element.answer',
-                            views: "$$element.views",
-                            upVotes: {$size: "$$element.likes"},
-                            rating: {$avg: "$$element.rating"},
-                            downVotes: {$size: "$$element.dislikes"}
-                        }
-                    }
-                }
-                , question: 1,
-                postedBy: 1,
-                'total answers': {$size: "$answers"}
+                // answers: {
+                //     $map: {
+                //         input: '$answers',
+                //         as: "element",
+                //         in: {
+                //             answerId: "$$element._id",
+                //             answeredOn: '$$element.createdAt',
+                //             answeredBy: '$$element.answeredBy',
+                //             answer: '$$element.answer',
+                //             views: "$$element.views",
+                //             upVotes: {$size: "$$element.likes"},
+                //             downVotes: {$size: "$$element.dislikes"}
+                //         }
+                //     }
+                // },
+                answer: 1,
+                createdAt: 1,
+                postId: 1,
+                view: 1,
+                view_cost: 1,
+                attachment: 1,
+                answeredBy: 1,
+                'total_likes': {$size: "$likes"},
+                'total_dislikes': {$size: "$dislikes"}
             }
         },
-        {$sort: {date: -1}},
-        {$limit: 20}
+        {$sort: {createdAt: -1}},
+        {$limit: 50}
     ], function (err, data) {
         console.log(data);
         if (err) {
@@ -282,8 +419,8 @@ router.get('/answer', function (req, res) {
         }
 
         Question.populate(data, {
-                'path': 'postedBy likes.userId dislikes.userId comments.commentedBy',
-                'select': 'name photoUrl email bio title'
+                'path': 'answeredBy postId',
+                'select': 'name photoUrl email bio question '
             },
 
             function (err, post) {
@@ -299,48 +436,52 @@ router.get('/answer', function (req, res) {
     });
 });
 
-/*** END POINT FOR GETTING ANSWERS OF A CURRENTLY LOGGED IN USER */
+/*** END POINT FOR GETTING ANSWERS OF A USER BY ANOTHER CURRENTLY LOGGED IN USER */
 router.get('/answer/:userId', function (req, res) {
 
     let id = req.params.userId;
-    Question.aggregate([
-        {$match: {'answers.answeredBy': id}},
+    Answers.aggregate([
+        {$match: {'answeredBy': id}},
         {
             $project: {
-                answers: {
-                    $map: {
-                        input: '$answers',
-                        as: "element",
-                        in: {
-                            answerId: "$$element._id",
-                            answeredOn: '$$element.createdAt',
-                            answeredBy: '$$element.answeredBy',
-                            views: "$$element.views",
-                            upVotes: {$size: "$$element.likes"},
-                            rating: {$avg: "$$element.rating"},
-                            downVotes: {$size: "$$element.dislikes"}
-                        }
-                    }
-                }
-                , question: 1,
-                postedBy: 1,
-                'total answers': {$size: "$answers"}
+                // answers: {
+                //     $map: {
+                //         input: '$answers',
+                //         as: "element",
+                //         in: {
+                //             answerId: "$$element._id",
+                //             answeredOn: '$$element.createdAt',
+                //             answeredBy: '$$element.answeredBy',
+                //             answer: '$$element.answer',
+                //             views: "$$element.views",
+                //             upVotes: {$size: "$$element.likes"},
+                //             downVotes: {$size: "$$element.dislikes"}
+                //         }
+                //     }
+                // },
+                answer: 1,
+                createdAt: 1,
+                postId: 1,
+                view: 1,
+                view_cost: 1,
+                attachment: 1,
+                answeredBy: 1,
+                'total_likes': {$size: "$likes"},
+                'total_dislikes': {$size: "$dislikes"}
             }
         },
-        {$sort: {date: -1}},
-        {$limit: 20}
+        {$sort: {createdAt: -1}},
+        {$limit: 50}
     ], function (err, data) {
-        console.log(data);
         if (err) {
             console.log(err);
             return res.badRequest("Something unexpected happened");
         }
 
         Question.populate(data, {
-                'path': 'postedBy likes.userId dislikes.userId comments.commentedBy',
-                'select': 'name photoUrl email bio title'
+                'path': 'answeredBy postId',
+                'select': 'name photoUrl email bio question '
             },
-
             function (err, post) {
 
                 if (err) {
@@ -354,17 +495,148 @@ router.get('/answer/:userId', function (req, res) {
     });
 });
 
-/*** END POINT FOR UPDATING USER CATEGORIES OF CURRENTLY SIGNED UP USER */
+/*** END POINT FOR GETTING QUESTIONS OF A CURRENTLY LOGGED IN USER */
+router.get('/followers', function (req, res) {
+
+    let id = req.user.id;
+    User.findOne({_id: id})
+        .populate({
+            path: 'followers.userId',
+            select: 'name ranking photoUrl'
+        })
+        .exec(function (err, result) {
+        if(err){
+            console.log(err);
+            return res.badRequest("Something unexpected happened");
+        }
+        if(!result){
+            return res.badRequest("no user found with details provided");
+        }
+
+        res.success(result.followers)
+    })
+});
+
+/*** END POINT FOR GETTING QUESTIONS OF A CURRENTLY LOGGED IN USER */
+router.get('/followers/:userId', function (req, res) {
+
+    let id = req.params.userId;
+    User.findOne({_id: id})
+        .populate({
+            path: 'followers.userId',
+            select: 'name ranking photoUrl'
+        })
+        .exec(function (err, result) {
+            if(err){
+                console.log(err);
+                return res.badRequest("Something unexpected happened");
+            }
+            if(!result){
+                return res.badRequest("no user found with details provided");
+            }
+
+            res.success(result.followers)
+        })
+});
+
+/*** END POINT FOR GETTING QUESTIONS OF A CURRENTLY LOGGED IN USER */
+router.get('/following', function (req, res) {
+
+    let id = req.user.id;
+    User.findOne({_id: id})
+        .populate({
+            path: 'following.userId',
+            select: 'name ranking photoUrl'
+        })
+        .exec(function (err, result) {
+            if(err){
+                console.log(err);
+                return res.badRequest("Something unexpected happened");
+            }
+            if(!result){
+                return res.badRequest("no user found with details provided");
+            }
+
+            res.success(result.following)
+        })
+});
+
+/*** END POINT FOR GETTING QUESTIONS OF A CURRENTLY LOGGED IN USER */
+router.get('/following/:userId', function (req, res) {
+
+    let id = req.params.userId;
+    User.findOne({_id: id})
+        .populate({
+            path: 'following.userId',
+            select: 'name ranking photoUrl'
+        })
+        .exec(function (err, result) {
+            if(err){
+                console.log(err);
+                return res.badRequest("Something unexpected happened");
+            }
+            if(!result){
+                return res.badRequest("no user found with details provided");
+            }
+
+            res.success(result.following)
+        })
+});
+
+/*** END POINT FOR GETTING PERSONAL WALLET DETAILS BY CURRENTLY LOGGED IN USER */
+router.get('/wallet', function(req, res) {
+
+    let id = req.user.id;
+
+    User.aggregate([
+        {$match: {'_id': id}},
+        {
+            $project: {
+                walletBalance: 1,
+                withdrawals: 1,
+                deposits: 1,
+                transactions: 1,
+            }
+        }
+    ], function (err, data) {
+        if (err) {
+            console.log(err);
+            return res.badRequest("Something unexpected happened");
+        }
+
+        User.populate(data, {
+                'path': 'followers.userId following.userId categoryTags.categoryId posts.postedBy questions.postedBy',
+                'select': 'name photoUrl bio title'
+            },
+
+            function (err, user) {
+
+                if (err) {
+                    console.log(err);
+                    return res.badRequest("Something unexpected happened");
+                }
+                if (!user) {
+                    return res.badRequest("YOU NEED TO BE A REGISTERED USER TO VIEW GET ACCESS");
+                }
+
+                res.success(user);
+            });
+    });
+});
+
+/*** END POINT FOR UPDATING USER PROFILE OF CURRENTLY SIGNED UP USER */
 router.post('/update', function(req, res){
 
     let name = req.body.name,
-        address = req.body.address,
+        company = req.body.company,
         bio = req.body.bio,
-        profession = req.body.profession,
+        role = req.body.role,
+        category = req.body.category,
+        packageId = req.body.packageId,
         phone_number = req.body.phone_number,
-        category = req.body.category;
+        profession = req.body.profession;
 
-    if (!(name || address || bio || profession || category || phone_number)){
+    if (!(name || company || packageId || role || phone_number || bio || category || profession )){
         return res.badRequest('Please input the value to the field you would love to update');
     }
 
@@ -375,133 +647,164 @@ router.post('/update', function(req, res){
         if(!vBio) return;
         profile.bio = bio;
     }
+    if (packageId){
+        let vBio = validator.isValidPackage(res, packageId);
+        if(!vBio) return;
+        profile.package = packageId;
+    }
+    if (company){
+        let vBio = validator.isSentence(res, company);
+        if(!vBio) return;
+        profile.company = company;
+    }
+    if (phone_number){
+        let vBio = validator.isValidPhoneNumber(res, phone_number);
+        if(!vBio) return;
+        profile.phone_number = phone_number;
+    }
     if (name){
         let fullName = validator.isFullname(res, name);
-        if(!fullName)
-            return;
+        if(!fullName) return;
         profile.name = name;
     }
     if (profession){
         let fullName = validator.isWord(res, profession);
-        if(!fullName)
-            return;
+        if(!fullName) return;
         profile.profession = profession;
     }
-    if (address){
-        let address1 = validator.isSentence(res, address);
-        if(!address1)
-            return;
-        profile.address = address;
-    }
-    if (phone_number){
-        let valid = validator.isValidPhoneNumber(res, phone_number);
-        if(!valid) return;
-
-        User.findOne({phone_number: phone_number}, function (err, user) {
-            if (err) {
-                console.log(err);
-                return res.serverError("Something unexpected happened");
-            }
-            if (user && user._id !== req.user.id) {
-                return res.badRequest('A user already Exist with Phone Number: ' + phone_number);
-            }
-            if (user && user._id === req.user.id) {
-                return res.badRequest('Phone number already used by You. select a new Phone number you will love to change to');
-            }
-
-            profile.phone_number = phone_number;
-        })
-    }
-    if (category && !Array.isArray(category)) {
-        return res.badRequest('Tagged should be a json array of user Ids (string)')
-    } else {
+    if (category) {
         //remove duplicates before proceeding
         arrayUtils.removeDuplicates(category);
 
-        Category.find({_id: category}, function (err, cate) {
-            if (err && err.name === "CastError") {
-                return res.badRequest("category error please pick from the available categories");
-            }
-            if (err) {
-                return res.badRequest("something unexpected happened");
-            }
-            profile.categoryTags = []; //new empty array
-            for (let i = 0; i < category.length; i++) {
-                let categoryId = category[i];
+        let validated = validator.isCategory(res, category);
+        if (!validated) return;
+        console.log(validated)
 
-                if (typeof(categoryId) !== "string") {
-                    return res.badRequest("User IDs in tagged array must be string");
-                }
+        profile.categoryTags = [];
+        for (let i = 0; i < category.length; i++) {
+            let cateId = category[i];
 
-                profile.categoryTags.push({categoryId: categoryId});
+            if (typeof(cateId) !== "string") {
+                return res.badRequest("category IDs in tagged array must be string");
             }
-        })
+
+            profile.categoryTags.push({categoryId: cateId});
+        }
+    }
+    if (role){
+        let address1 = validator.isSentence(res, role);
+        if(!address1) return;
+        profile.role = role;
     }
 
-    User.findByIdAndUpdate(req.user.id, {$set: profile}, {new: true})
-        .populate({
-            path: 'followers.userId',
-            select:'name photo bio'
-        })
-        .populate({
-            path: 'categoryTags.categoryId',
-            select:'title'
-        })
-        .populate({
-            path: 'following.userId',
-            select:'name photo bio'
-        })
-        .exec(function(err, user) {
-            if (err) {
-                console.log(err);
-                return res.serverError("Something unexpected happened");
+    console.log(profile)
+
+    User.findByIdAndUpdate(req.user.id, {$set: profile}, {new: true}, function(err, user) {
+        if (err) {
+            console.log(err);
+            return res.serverError("Something unexpected happened");
+        }
+        if (!user) {
+            return res.badRequest("User profile not found please be sure you are still logged in");
+        }
+
+        User.populate(user, {
+                'path': 'followers.userId following.userId categoryTags.categoryId',
+                'select': 'name photoUrl bio title'
+            }, function (err, user) {
+
+                if (err) {
+                    console.log(err);
+                    return res.badRequest("Something unexpected happened");
+                }
+                let info = {
+                    profession: user.profession,
+                    photo: user.photoUrl,
+                    name: user.name,
+                    email: user.email,
+                    phone_number: user.phone_number,
+                    address: user.address,
+                    bio: user.bio,
+                    followers: user.followers,
+                    following: user.following,
+                    category: user.categoryTags
+                };
+
+                if (name) {
+                    let token = req.body.token || req.query.token || req.headers['x-access-token'];
+                    firebase.updateProfile(token, name, function (err) {
+                        if (err) {
+                            console.log(err);
+                        }
+
+                        res.success(info);
+                    });
+                }
+                else {
+                    res.success(info);
+                }
             }
-            if (!user) {
-                return res.badRequest("User profile not found please be sure you are still logged in");
+        );
+    })
+});
+
+/*** END POINT FOR UPDATING USER PROFILE OF CURRENTLY SIGNED UP USER */
+router.post('/chat_cost', function(req, res) {
+
+    let amount = req.body.amount,
+        currency = req.body.currency,
+        userId = req.user.id;
+
+    let valid = validator.isNumber(res, amount)&&
+        validator.isWord(res, currency);
+    if (!valid) return;
+
+    User.findOne({_id: userId}, function (err, user) {
+        if (err) {
+            console.log(err);
+            return res.badRequest("Something unexpected happened");
+        }
+        if (!user || user === null || user === undefined) {
+            return res.badRequest("no user found with details provided");
+        }
+        if (!user.packageType || user.packageType === null || user.packageType === undefined) {
+            return res.badRequest("no user package plan setup for this profile");
+        }
+
+        let packId = user.packageType;
+        chatCost(packId, amount, currency, function (err, info) {
+            if (err) {
+                return res.badRequest(err);
             }
 
-            let info = {
-                photo: user.photoUrl,
-                name: user.name,
-                email: user.email,
-                phone_number: user.phone_number,
-                address: user.address,
-                bio: user.bio,
-                followers: user.followers,
-                following: user.following,
-                category: user.categoryTags
+            let data = {
+                'chat.amount' : amount,
+                'chat.currency': currency
             };
 
-            if (name){
-                let token = req.body.token || req.query.token || req.headers['x-access-token'];
-                firebase.updateProfile(token, name, function (err) {
-                    if (err) {
-                        console.log(err);
-                    }
+            user.set(data);
+            user.save(function (err, user) {
+                if (err) {
+                    console.log(err);
+                    return res.badRequest('something happened');
+                }
 
-                    res.success(info);
-                });
-            }
-            else{
-                res.success(info);
-            }
-        }
-    );
+                res.success('chat cost updated successfully')
+            })
+        })
+    })
 });
 
 /*** END POINT FOR UPDATING PROFILE PICTURE OF CURRENTLY LOGGED IN USER */
-router.put('/photo', function(req, res) {
+router.post('/profile_picture', function(req, res) {
     let file = req.files.null,
-        path = file.path,
         id = req.user.id;
 
-    console.log(file.path);
-
     let validated = validator.isFile(res, file);
-    if(!validated)
+    if (!validated)
         return;
-    if (file.type !== 'image/jpeg') {
-        return res.badRequest("file to be uploaded must be an image and a jpeg/jpg format");
+    if (file['type'].split('/')[0] !== 'image') {
+        return res.badRequest("file to be uploaded must be an image");
     }
 
     User.findOne({_id: id}, function (err, user) {
@@ -509,64 +812,65 @@ router.put('/photo', function(req, res) {
             return res.badRequest(err);
         }
         if (!user) {
-            return res.badRequest('no user found with your id: ' + id);
+            return res.badRequest('no user found with your login details');
         }
-        console.log('first '+ user.public_id);
-        if (user.public_id === null || user.public_id === 0 || user.public_id === undefined) {
-            console.log('im starting it fail here');
-
-            cloudUpload(path, function (err, result) {
+        console.log('first ' + user.public_id);
+        if (user.profile_picture.public_id === null || user.profile_picture.public_id === 0 || user.profile_picture.public_id === undefined) {
+            upload(file, function (err, result) {
                 if (err) {
-                    console.log('it fail here' +err);
+                    console.log('it fail here' + err);
                     res.badRequest(err.message);
                 }
                 console.log(result);
-                let data = {
-                    photoUrl: result.secure_url,
-                    public_id: result.public_id
-                };
-                user.set(data);
+                user.profile_picture.push(result);
                 user.save(function (err, user) {
                     if (err) {
                         console.log(err);
                     }
                     console.log('saving user', user);
-                    fs.unlink(file.path, function (err , g) {
+                    fs.unlink(file.path, function (err, g) {
                         if (err) {
                             console.log(err);
                             return res.badRequest(err);
                         }
                     });
+
                     res.success(user);
                 })
             })
         } else {
             console.log('im here and this is the iss');
-            let public_id = user.public_id;
+            let public_id = user.profile_picture.public_id,
+                pictureId = user.profile_picture._id;
+
             cloudinary.v2.uploader.destroy(public_id, {invalidate: true}, function (err, result) {
                 if (err) {
                     console.log(err);
                     return res.badRequest(err);
-                } else {
-                    console.log('deleted :', result);
-
-                    cloudUpload(path, function (err, result) {
+                }
+                console.log('deleted :', result);
+                user.profile_picture.id(pictureId).remove();
+                user.save(function (err, data) {
+                    if (err) {
+                        console.log(err);
+                        return res.badRequest('something went wrong');
+                    }
+                    if (!data){
+                        return res.badRequest('something went wrong cause data wasnt found');
+                    }
+                    upload(file, function (err, result) {
                         if (err) {
                             console.log(err);
                             return res.badRequest(err.message);
                         } else {
                             console.log('uploaded successfully :', result);
-                            let data = {
-                                photoUrl: result.secure_url,
-                                public_id: result.public_id
-                            };
-                            user.set(data);
+                            user.profile_picture.push(result);
                             user.save(function (err, user) {
                                 if (err) {
                                     console.log(err);
                                 }
                                 console.log('saving user', user);
-                                fs.unlink(file.path, function (err , g) {
+                                fs.unlink(file.path, function (err, g) {
                                     if (err) {
                                         console.log(err);
                                         return res.badRequest(err);
@@ -578,70 +882,106 @@ router.put('/photo', function(req, res) {
                             })
                         }
                     })
-                }
+                })
             })
         }
     })
 });
 
-/*** END POINT FOR UPDATING PROFILE PHONE NUMBER OF CURRENTLY LOGGED IN USER */
-// router.post('/phoneNumber', function(req, res){
-//
-//     let phone_number = req.body.phone_number,
-//         validatedPhoneNumber = validator.isValidPhoneNumber(res, phone_number);
-//
-//     if (!validatedPhoneNumber)
-//         return;
-//
-//     User.findOne({phone_number: phone_number}, function (err, user) {
-//         if (err) {
-//             console.log(err);
-//             return res.serverError("Something unexpected happened");
-//         }
-//         if (user && user._id !== req.user.id){
-//             return res.badRequest('A user already Exist with Phone Number: '+ phone_number);
-//         }
-//         if (user && user._id === req.user.id){
-//             return res.badRequest('Phone number already used by You. select a new Phone number you will love to change to');
-//         }
-//
-//         User.findByIdAndUpdate(req.user.id, {$set: {phone_number: phone_number}}, {new: true})
-//             .populate({
-//                 path: 'followers.userId',
-//                 select:'name photo email coverImageUrl'
-//             })
-//             .populate({
-//                 path: 'following.userId',
-//                 select:'name photo email coverImageUrl'
-//             })
-//             .exec(function(err, user) {
-//                 if (err) {
-//                     console.log(err);
-//                     return res.serverError("Something unexpected happened");
-//                 }
-//                 if (!user) {
-//                     return res.badRequest("User profile not found please be sure you are still logged in");
-//                 }
-//
-//                 let info = {
-//                     coverImageUrl: user.coverImageUrl,
-//                     photo: user.photoUrl,
-//                     name: user.name,
-//                     email: user.email,
-//                     username: user.username,
-//                     phone_number: user.phone_number,
-//                     address: user.address,
-//                     bio: user.bio,
-//                     status: user.status,
-//                     d_o_b: user.d_o_b,
-//                     followers: user.followers,
-//                     following: user.following
-//                 };
-//                 res.success(info);
-//             }
-//         )
-//     })
-// });
+/*** END POINT FOR UPDATING CV INFORMATION OF CURRENTLY LOGGED IN USER */
+router.post('/cv', function(req, res) {
+    let file = req.files.null,
+        id = req.user.id;
+
+    let validated = validator.isFile(res, file);
+    if(!validated) return;
+
+    if (file['type'].split('/')[0] === 'audio' || file['type'].split('/')[0] === 'video') {
+        return res.badRequest("file to be uploaded must be either pdf, word document, text format only");
+    }
+
+    User.findOne({_id: id}, function (err, user) {
+        if (err) {
+            return res.badRequest(err);
+        }
+        if (!user) {
+            return res.badRequest('no user found with your id: ' + id);
+        }
+        console.log('first ' + user.cvPublic_id);
+        if (user.cv_Urls.public_id === null || user.cv_Urls.public_id === 0 || user.cv_Urls.public_id === undefined) {
+            upload(file, function (err, result) {
+                if (err) {
+                    console.log('it fail here' + err);
+                    res.badRequest(err.message);
+                }
+                console.log(result);
+
+                user.cv_Urls.push(result);
+                user.save(function (err, user) {
+                    if (err) {
+                        console.log(err);
+                    }
+                    console.log('saving user', user);
+                    fs.unlink(file.path, function (err, g) {
+                        if (err) {
+                            console.log(err);
+                            return res.badRequest(err);
+                        }
+                    });
+                    res.success(user);
+                })
+            })
+        } else {
+            console.log('im here and this is the iss');
+            let public_id = user.cv_Urls.public_id,
+                cvId = user.cv_Urls._id;
+
+            cloudinary.v2.uploader.destroy(public_id, {invalidate: true}, function (err, result) {
+                if (err) {
+                    console.log(err);
+                    return res.badRequest(err);
+                } else {
+
+                    console.log('deleted :', result);
+                    user.cv_Urls.id(cvId).remove();
+                    user.save(function (err, data) {
+                        if (err) {
+                            console.log(err);
+                            return res.badRequest('something went wrong');
+                        }
+                        if (!data) {
+                            return res.badRequest('something went wrong cause data wasnt found');
+                        }
+                        upload(file, function (err, result) {
+                            if (err) {
+                                console.log(err);
+                                return res.badRequest(err.message);
+                            } else {
+                                console.log('uploaded successfully :', result);
+                                user.cv_Urls.push(result);
+                                user.save(function (err, user) {
+                                    if (err) {
+                                        console.log(err);
+                                    }
+                                    console.log('saving user', user);
+                                    fs.unlink(file.path, function (err, g) {
+                                        if (err) {
+                                            console.log(err);
+                                            return res.badRequest(err);
+                                        }
+                                        console.log(g);
+                                    });
+
+                                    res.success(user);
+                                })
+                            }
+                        })
+                    })
+                }
+            })
+        }
+    })
+});
 
 /*** END POINT FOR FOR REQUESTING PASSWORD CHANGE BY LOGGED IN USER */
 router.post('/edit_password', function(req, res){
@@ -787,18 +1127,48 @@ function ranking(id, callback){
     });
 }
 
-function cloudUpload(path, callback) {
-
-    cloudinary.v2.uploader.upload(path, function (err, result){
+function upload(file, callback) {
+    if (file.length > 1) {
+        return res.badRequest('you can not upload more than 1 picture at a time')
+    }
+    cloudinary.v2.uploader.upload(file.path, {resource_type: 'auto'}, function (err, result) {
         if (err) {
             console.log('it failed here' + err);
-            return callback(err.message);
+            return callback(err);
         } else {
             console.log(result);
-            return callback(null, result);
+            let data = {
+                public_id: result.public_id,
+                mediaUrl: result.secure_url,
+                mediaType: result.resource_type
+            };
+
+            return callback(null, data);
         }
     })
 }
+
+function chatCost(packId, amount, currency, callback) {
+    Packages.findOne({_id: packId}, function (err, pack) {
+        if (err) {
+            console.log(err);
+            return callback("Something unexpected happened");
+        }
+        if (!pack || pack === undefined || pack === null) {
+            return callback("no package found with that name");
+        }
+        console.log(pack)
+        if (amount < 0 || amount > info.chat.max.amount) {
+            return callback("cost to chat cannot be less than zero or greater than your package maximum allowed pricing of " + info.chat.max.amount);
+        }
+        if (currency !== info.chat.max.currency) {
+            return callback('the currency must match that of your package');
+        }
+
+        return callback(null, pack)
+    });
+}
+
 // /*** END POINT FOR GETTING PERSONAL PROFILE BY CURRENTLY LOGGED IN USER */
 // router.get('/', function(req, res) {
 //     let id = req.user.id;
@@ -885,124 +1255,132 @@ function cloudUpload(path, callback) {
 //     });
 // });
 
-// /*** END POINT FOR GETTING QUESTIONS OF A CURRENTLY LOGGED IN USER */
-// router.get('/question', function (req, res) {
+
+// /*** END POINT FOR UPDATING PROFILE PHONE NUMBER OF CURRENTLY LOGGED IN USER */
+// router.post('/phone_number', function(req, res){
 //
-//     let id = req.user.id;
+//     let phone_number = req.body.phone_number,
+//         validatedPhoneNumber = validator.isValidPhoneNumber(res, phone_number);
 //
-//     Question.aggregate([
-//         {$match: {'postedBy': id}},
-//         {$unwind: {path: "$category", preserveNullAndEmptyArrays: true}},
-//         {
-//             $project: {
-//                 answers: {$size: "$answers"},
-//                 dislikes: {$size: "$dislikes"},
-//                 likes: {$size: "$likes"},
-//                 category: 1,
-//                 story: 1,
-//                 postedOn: 1,
-//                 title: 1
-//             }
-//         },
-//         {$sort: {date: -1}},
-//         // {
-//         //     $lookup: {
-//         //         from: "answers",
-//         //         localField: "_id",
-//         //         foreignField: "question",
-//         //         as: "Posts",
-//         //     }
-//         // }
+//     if (!validatedPhoneNumber)
+//         return;
 //
-//     ], function (err, data) {
-//         console.log(data);
+//     User.findOne({phone_number: phone_number}, function (err, user) {
 //         if (err) {
 //             console.log(err);
-//             return res.badRequest("Something unexpected happened");
+//             return res.serverError("Something unexpected happened");
+//         }
+//         if (user && user._id !== req.user.id){
+//             return res.badRequest('A user already Exist with Phone Number: '+ phone_number);
+//         }
+//         if (user && user._id === req.user.id){
+//             return res.badRequest('Phone number already used by You. select a new Phone number you will love to change to');
 //         }
 //
-//         Question.populate(data, {
-//                 'path': 'postedBy likes.userId dislikes.userId comments.commentedBy',
-//                 'select': 'name photoUrl email bio title'
-//             },
-//
-//             function (err, post) {
-//
-//                 if (err) {
-//                     console.log(err);
-//                     return res.badRequest("Something unexpected happened");
-//                 }
-//                 if (!post) {
-//                     return res.success([]);
-//                 }
-//
-//                 res.success(post);
+//         User.findByIdAndUpdate(req.user.id, {$set: {phone_number: phone_number}}, {new: true}, function(err, user) {
+//             if (err) {
+//                 console.log(err);
+//                 return res.serverError("Something unexpected happened");
 //             }
-//         );
-//     });
-// });
-//
-// /*** END POINT FOR GETTING STORY OF A CURRENTLY LOGGED IN USER */
-// router.get('/story', function (req, res) {
-//
-//     let id = req.user.id;
-//
-//     Story.aggregate([
-//         {$match: {'postedBy': id}},
-//         {$unwind: {path: "$category", preserveNullAndEmptyArrays: true}},
-//         {$project: {comments:{$size :"$comments"},dislikes:{$size :"$dislikes"},likes:{$size :"$likes"}, category:1, story:1, postedOn:1,title:1}},
-//         {$sort:{date: -1}}
-//
-//     ], function (err, data) {
-//         console.log(data);
-//         if (err) {
-//             console.log(err);
-//             return res.badRequest("Something unexpected happened");
-//         }
-//
-//         Story.populate(data,{
-//                 'path': 'postedBy likes.userId dislikes.userId comments.commentedBy',
-//                 'select': 'name photoUrl email bio title'
-//             },
-//
-//             function (err, post) {
-//
-//                 if (err) {
-//                     console.log(err);
-//                     return res.badRequest("Something unexpected happened");
-//                 }
-//                 if (!post) {
-//                     return res.success([]);
-//                 }
-//
-//                 res.success(post);
+//             if (!user) {
+//                 return res.badRequest("User profile not found please be sure you are still logged in");
 //             }
-//         );
-//     });
+//             User.populate(user, {
+//                     'path': 'followers.userId following.userId categoryTags.categoryId',
+//                     'select': 'name photoUrl bio title'
+//                 }, function (err, user) {
+//
+//                     if (err) {
+//                         console.log(err);
+//                         return res.badRequest("Something unexpected happened");
+//                     }
+//                     let info = {
+//                         profession: user.profession,
+//                         photo: user.photoUrl,
+//                         name: user.name,
+//                         email: user.email,
+//                         phone_number: user.phone_number,
+//                         address: user.address,
+//                         bio: user.bio,
+//                         followers: user.followers,
+//                         following: user.following,
+//                         category: user.categoryTags
+//                     };
+//                     res.success(info);
+//                 }
+//             )
+//         })
+//     })
 // });
 
-// /*** END POINT FOR GETTING FOLLOWERS OF A CURRENTLY LOGGED IN USER */
-// router.get('/user/follower', function(req, res){
+// /*** END POINT FOR UPDATING PROFILE PHONE NUMBER OF CURRENTLY LOGGED IN USER */
+// router.post('/category', function(req, res){
 //
-//     let id = req.user.id;
-//     profile(id, function (err, result) {
+//     let category = req.body.category,
+//         validated = validator.isCategory(res, category);
+//     if (!validated) return;
 //
-//         if (err){
-//             return res.badRequest(err.message);
+//     //remove duplicates before proceeding
+//     arrayUtils.removeDuplicates(category);
+//
+//     Category.find({_id: category}, function (err, cate) {
+//         if (err && err.name === "CastError") {
+//             return res.badRequest("category error please pick from the available categories");
 //         }
-//         res.success({followers: result.followers});
-//     });
-// });
-//
-// /*** END POINT FOR GETTING FOLLOWING OF A CURRENTLY LOGGED IN USER */
-// router.get('/user/following', function(req, res){
-//     let id = req.user.id;
-//
-//     profile(id, function (err, result) {
-//         if (err){
-//             return res.badRequest(err.message);
+//         if (err) {
+//             return res.badRequest("something unexpected happened");
 //         }
-//         res.success({following: result.following});
-//     });
+//
+//         let data = {};
+//         data.categoryTags = []; //new empty array
+//
+//         for (let i = 0; i < category.length; i++) {
+//             let categoryId = category[i];
+//
+//             if (typeof(categoryId) !== "string") {
+//                 return res.badRequest("User IDs in tagged array must be string");
+//             }
+//
+//             data.categoryTags.push({categoryId: categoryId});
+//         }
+//
+//         console.log(data)
+//         User.findByIdAndUpdate(req.user.id, {$set: data}, {new: true}, function (err, user) {
+//             if (err) {
+//                 console.log(err);
+//                 return res.serverError("Something unexpected happened");
+//             }
+//             if (!user) {
+//                 return res.badRequest("User profile not found please be sure you are still logged in");
+//             }
+//
+//             User.populate(user, {
+//                     'path': 'followers.userId following.userId categoryTags.categoryId',
+//                     'select': 'name photoUrl bio title'
+//                 }, function (err, user) {
+//
+//                     if (err) {
+//                         console.log(err);
+//                         return res.badRequest("Something unexpected happened");
+//                     }
+//                     let info = {
+//                         profession: user.profession,
+//                         photo: user.photoUrl,
+//                         name: user.name,
+//                         email: user.email,
+//                         phone_number: user.phone_number,
+//                         address: user.address,
+//                         bio: user.bio,
+//                         followers: user.followers,
+//                         following: user.following,
+//                         category: user.categoryTags
+//                     };
+//
+//                     res.success(info);
+//                 }
+//             )
+//         })
+//     })
 // });
+
 module.exports = router;

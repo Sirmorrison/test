@@ -28,7 +28,9 @@ app.use(reply.setupResponder);
 let config = require('./config');
 let mongoose = require('mongoose');
 
-mongoose.connect(config.mongoUrl);
+mongoose.connect(config.mongoUrl, {
+    useMongoClient: true,
+});
 let db = mongoose.connection;
 db.on('error', console.error.bind(console, 'connection error'));
 db.once('open', () => console.log('connected to ask oleum database'));
@@ -43,14 +45,18 @@ app.use('/action', action);
 let admin = require('./routers/admin');
 app.use('/admin', admin);
 
-let bills = require('./routers/bills');
-app.use('/bills', bills);
+let payments = require('./routers/payments');
+app.use('/payments', payments);
 
 let post = require('./routers/post');
 app.use('/post', post);
 
+let messages = require('./routers/messages');
+app.use('/messages', messages);
+
 app.use(function(err, req, res, next){
 	res.status(400).json(err);
 });
+
 
 module.exports = app;
