@@ -18,19 +18,6 @@ let Package = require('../../models/packages'),
     User = require('../../models/user');
 
 
-/*** END POINT FOR GETTING A LIST PROFILE CATEGORIES BY NEW USER */
-router.get('/categories', function (req, res) {
-
-    Category.find({}, {title:1, summary:1, description:1},function (err, result) {
-        if (err) {
-            console.log(err);
-            return res.badRequest("Something unexpected happened");
-        }
-
-        res.success(result);
-    })
-});
-
 //PAYMENT PACKAGES
 
 //ADMIN BROADCAST MESSAGE

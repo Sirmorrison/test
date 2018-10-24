@@ -13,30 +13,6 @@ let Package = require('../../models/packages'),
 
 
 /*** END POINT FOR SEARCHING FOR A USER BY TEXT*/
-router.get('/category', function (req, res) {
-
-    let search = req.body.word;
-    let v = validator.isWord(res, search);
-    if (!v) return;
-
-    Category.aggregate(
-        [
-            {$match: {$text: {$search: search}}},
-            {$project: {name:1, score: {$meta: "textScore"}}},
-            {$limit: 5}
-        ], function (err, data) {
-            console.log(data)
-
-            if (err) {
-                console.log(err);
-                return res.badRequest("Something unexpected happened");
-            }
-
-            res.success(data);
-        });
-});
-
-/*** END POINT FOR SEARCHING FOR A USER BY TEXT*/
 router.get('/search/user/:search', function (req, res) {
 
     let search = req.params.search;

@@ -31,8 +31,9 @@
  */
 /**
  * ROUTES FOR USERS Tested
- * signup
- * login
+ * signup checked
+ * login(email, facebook) checked
+ * category(update, search, get)checked
  * question (post, get, put, delete), comment(post, get, put, delete)
  * story (post, get, put, delete), comment(post, get, put, delete)
  * blog (post, get, put, delete), comment(post, get, put, delete)

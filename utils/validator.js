@@ -15,7 +15,7 @@ exports.isValidEmail = function(res, email, optional){
 	return true;
 };
 
-exports.isValidPhoneNumber = function(res, phoneNumber, optional){
+exports.isValidPhoneNumber = function(res, phoneNumber, id, optional){
     if (!optional && !phoneNumber) {
         return res.badRequest('Phone Number is required');
     }
@@ -28,20 +28,11 @@ exports.isValidPhoneNumber = function(res, phoneNumber, optional){
                 console.log(err);
                 return res.badRequest("Something unexpected happened");
             }
-            if (result) {
-                return res.badRequest("mongo user A user already exist with this phone number: " + phoneNumber);
+            if (result && result._id !== id) {
+                return res.badRequest("user A user already exist with this phone number: " + phoneNumber);
             }
-            Admin.findOne({phone_number: phoneNumber}, function (err, result) {
-                if (err) {
-                    console.log(err);
-                    return res.badRequest("Something unexpected happened");
-                }
-                if (result) {
-                    return res.badRequest("mongo admin A user already exist with this phone number: " + phoneNumber);
-                }
 
-                return true;
-            })
+            return true
         });
     }
 
@@ -159,7 +150,7 @@ exports.isCategory = function(res, cate_tags, optional){
         return res.badRequest('filter category is required');
     }
     if (typeof(cate_tags) && !Array.isArray(cate_tags)){
-        return res.badRequest('Tags should be a json array of user Ids (string)')
+        return res.badRequest('Tags should be a json array of category Ids (string)')
     }
     if (cate_tags) {
         for (let i = 0; i < cate_tags.length; i++) {
@@ -448,8 +439,9 @@ exports.isFile = function(res, file, optional){
     if (!optional && !file) {
         return res.badRequest('File to be uploaded is required');
     }
+    console.log(file);
 
-    if (typeof(file.null.path) !== 'string' || file.null.path.trim().length <= 0 ){
+    if (typeof(file.path) !== 'string' || file.path.trim().length <= 0 ){
         return res.badRequest('File to be uploaded is required and must be string')
     }
 

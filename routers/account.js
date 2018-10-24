@@ -33,6 +33,9 @@ router.use('/token',protector.protect, token);
 let wallet = require('../controllers/account/wallet');
 router.use('/wallet',protector.protect, wallet);
 
+let category = require('../controllers/account/category');
+router.use('/category',protector.protect, category);
+
 //all subscribe endpoints
 let subscribe = require('../controllers/account/subscribe');
 router.use('/subscribe', subscribe);

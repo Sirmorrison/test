@@ -7,7 +7,6 @@ const firebase = new FirebaseAuth(config.FIREBASE_API_KEY);
 
 const validate = require('../../utils/validator');
 const User = require('../../models/user');
-const Admin = require('../../models/admin_user');
 
 /*** END POINT FOR LOGIN WITH EMAIL */
 router.post('/', function(req, res) {
@@ -44,25 +43,6 @@ router.post('/', function(req, res) {
             };
 
             res.success(userInfo);
-
-            // Admin.findById(resp.user.id, function (err, user) {
-            //     if (err) {
-            //         console.log(err);
-            //         return res.badRequest("Something unexpected happened");
-            //     }
-            //     if (!user) {
-            //         return res.badRequest("no user found with this with this login information");
-            //     }
-            //
-            //     let userInfo = {
-            //         name: user.name,
-            //         token: resp.token,
-            //         refreshToken: resp.refreshToken,
-            //         expiryMilliseconds: resp.expiryMilliseconds
-            //     };
-            //
-            //     return res.success(userInfo);
-            // });
         });
     });
 });
@@ -118,6 +98,7 @@ function processFirebaseSocialLogin(firebaseResponse, referrer, callback) {
             return callback("Something unexpected happened");
         }
         if (!user) {
+            console.log('no user found')
             if (referrer) {
                 User.findOne({referrer: referrer}, function (err, ref) {
                     if (err) {
@@ -151,6 +132,7 @@ function processFirebaseSocialLogin(firebaseResponse, referrer, callback) {
                     })
                 })
             } else {
+                console.log('no ref found')
                 let info = {
                     _id: firebaseResponse.user.id,
                     name: firebaseResponse.user.displayName,
@@ -173,6 +155,7 @@ function processFirebaseSocialLogin(firebaseResponse, referrer, callback) {
                 })
             }
         } else {
+            console.log('user found')
             let userInfo = {
                 name: user.name,
                 photoUrl: user.photoUrl,

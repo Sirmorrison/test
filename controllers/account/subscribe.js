@@ -140,9 +140,126 @@ router.post('/', protector.protect, function (req, res) {
             });
         })
     }
-
     });
 
+});
+
+/*** END POINT FOR UPDATING USER PROFILE OF CURRENTLY SIGNED UP USER */
+router.post('/update', function(req, res){
+
+    let name = req.body.name,
+        company = req.body.company,
+        bio = req.body.bio,
+        role = req.body.role,
+        packageId = req.body.packageId,
+        phone_number = req.body.phone_number,
+        profession = req.body.profession;
+
+    if (!(name || company || packageId || role || phone_number || bio || category || profession )){
+        return res.badRequest('Please input the value to the field you would love to update');
+    }
+
+    let profile = {};
+
+    if (bio){
+        let vBio = validator.isSentence(res, bio);
+        if(!vBio) return;
+        profile.bio = bio;
+    }
+    if (company){
+        let vBio = validator.isSentence(res, company);
+        if(!vBio) return;
+        profile.company = company;
+    }
+    if (phone_number){
+        let vBio = validator.isValidPhoneNumber(res, phone_number);
+        if(!vBio) return;
+        profile.phone_number = phone_number;
+    }
+    if (name){
+        let fullName = validator.isFullname(res, name);
+        if(!fullName) return;
+        profile.name = name;
+    }
+    if (profession){
+        let fullName = validator.isWord(res, profession);
+        if(!fullName) return;
+        profile.profession = profession;
+    }
+    if (category) {
+        //remove duplicates before proceeding
+        arrayUtils.removeDuplicates(category);
+
+        let validated = validator.isCategory(res, category);
+        if (!validated) return;
+        console.log(validated)
+
+        profile.categoryTags = [];
+        for (let i = 0; i < category.length; i++) {
+            let cateId = category[i];
+
+            if (typeof(cateId) !== "string") {
+                return res.badRequest("category IDs in tagged array must be string");
+            }
+
+            profile.categoryTags.push({categoryId: cateId});
+        }
+    }
+    if (role){
+        let address1 = validator.isSentence(res, role);
+        if(!address1) return;
+        profile.role = role;
+    }
+
+    console.log(profile)
+
+    User.findByIdAndUpdate(req.user.id, {$set: profile}, {new: true}, function(err, user) {
+        if (err) {
+            console.log(err);
+            return res.serverError("Something unexpected happened");
+        }
+        if (!user) {
+            return res.badRequest("User profile not found please be sure you are still logged in");
+        }
+
+        User.populate(user, {
+                'path': 'followers.userId following.userId categoryTags.categoryId',
+                'select': 'name photoUrl bio title'
+            }, function (err, user) {
+
+                if (err) {
+                    console.log(err);
+                    return res.badRequest("Something unexpected happened");
+                }
+                let info = {
+                    profession: user.profession,
+                    photo: user.photoUrl,
+                    name: user.name,
+                    email: user.email,
+                    phone_number: user.phone_number,
+                    address: user.address,
+                    bio: user.bio,
+                    followers: user.followers,
+                    following: user.following,
+                    category: user.categoryTags
+                };
+
+                if (name) {
+                    let token = req.body.token || req.query.token || req.headers['x-access-token'];
+                    firebase.updateProfile(token, name, function (err) {
+                        if (err) {
+                            console.log(err);
+                        }
+
+                        res.success(info);
+                    });
+                }
+                else {
+                    res.success(info);
+                }
+            }
+        );
+    })
 });
 
 /*** END POINT FOR UPDATING USER PROFILE OF CURRENTLY SIGNED UP USER */

@@ -22,5 +22,5 @@ let fields = {
 };
 
 let Categories = new Schema(fields, {timestamps: true});
-Categories.index({title: 1});
+Categories.index({title: 'text'});
 module.exports = mongoose.model('Categories', Categories);

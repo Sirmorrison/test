@@ -9,6 +9,46 @@ const Withdrawal = require('../../models/withdrawal');
 const Transaction = require('../../models/transactions');
 let Admin = require('../../models/admin_user');
 
+/*** END POINT FOR GETTING PERSONAL WALLET DETAILS BY CURRENTLY LOGGED IN USER */
+router.get('/wallet', function(req, res) {
+
+    let id = req.user.id;
+
+    User.aggregate([
+        {$match: {'_id': id}},
+        {
+            $project: {
+                walletBalance: 1,
+                withdrawals: 1,
+                deposits: 1,
+                transactions: 1,
+            }
+        }
+    ], function (err, data) {
+        if (err) {
+            console.log(err);
+            return res.badRequest("Something unexpected happened");
+        }
+
+        User.populate(data, {
+                'path': 'followers.userId following.userId categoryTags.categoryId posts.postedBy questions.postedBy',
+                'select': 'name photoUrl bio title'
+            },
+
+            function (err, user) {
+
+                if (err) {
+                    console.log(err);
+                    return res.badRequest("Something unexpected happened");
+                }
+                if (!user) {
+                    return res.badRequest("YOU NEED TO BE A REGISTERED USER TO VIEW GET ACCESS");
+                }
+
+                res.success(user);
+            });
+    });
+});
 
 /*** END POINT FOR GETTING PERSONAL WALLET BY CURRENTLY LOGGED IN USER */
 router.get('/', function(req, res) {
